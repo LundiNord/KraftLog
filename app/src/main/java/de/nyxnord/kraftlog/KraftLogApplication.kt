@@ -2,9 +2,11 @@ package de.nyxnord.kraftlog
 
 import android.app.Application
 import de.nyxnord.kraftlog.data.local.KraftLogDatabase
+import de.nyxnord.kraftlog.data.preferences.ReminderPreferences
 import de.nyxnord.kraftlog.data.repository.ExerciseRepository
 import de.nyxnord.kraftlog.data.repository.RoutineRepository
 import de.nyxnord.kraftlog.data.repository.WorkoutRepository
+import de.nyxnord.kraftlog.notification.ReminderScheduler
 
 class KraftLogApplication : Application() {
 
@@ -13,4 +15,12 @@ class KraftLogApplication : Application() {
     val exerciseRepository by lazy { ExerciseRepository(database.exerciseDao()) }
     val routineRepository by lazy { RoutineRepository(database.routineDao()) }
     val workoutRepository by lazy { WorkoutRepository(database.workoutSessionDao()) }
+    val reminderPreferences by lazy { ReminderPreferences(this) }
+
+    override fun onCreate() {
+        super.onCreate()
+        if (reminderPreferences.enabled) {
+            ReminderScheduler.schedule(this)
+        }
+    }
 }

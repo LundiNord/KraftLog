@@ -28,6 +28,9 @@ interface WorkoutSessionDao {
     @Query("SELECT * FROM workout_sessions WHERE finishedAt IS NOT NULL ORDER BY startedAt DESC LIMIT :limit")
     fun getRecentSessions(limit: Int): Flow<List<WorkoutSession>>
 
+    @Query("SELECT * FROM workout_sessions WHERE finishedAt IS NOT NULL ORDER BY finishedAt DESC LIMIT 1")
+    suspend fun getLastFinishedSession(): WorkoutSession?
+
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertSession(session: WorkoutSession): Long
 
@@ -80,4 +83,7 @@ interface WorkoutSessionDao {
 
     @Query("DELETE FROM workout_sets WHERE sessionId = :sessionId AND exerciseId = :exerciseId AND setNumber = :setNumber")
     suspend fun deleteSetByNumber(sessionId: Long, exerciseId: Long, setNumber: Int)
+
+    @Query("SELECT * FROM workout_sets")
+    fun getAllSets(): Flow<List<WorkoutSet>>
 }

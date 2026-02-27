@@ -74,7 +74,7 @@ fun HomeScreen(
                 )
             }
 
-            // Weekly stats
+            // Session count stats
             item {
                 Row(
                     modifier = Modifier.fillMaxWidth(),
@@ -82,7 +82,19 @@ fun HomeScreen(
                 ) {
                     StatCard(
                         label = "This Week",
-                        value = "${state.weeklyStats.sessions}",
+                        value = "${state.weeklySessions}",
+                        unit = "sessions",
+                        modifier = Modifier.weight(1f)
+                    )
+                    StatCard(
+                        label = "This Month",
+                        value = "${state.monthlySessions}",
+                        unit = "sessions",
+                        modifier = Modifier.weight(1f)
+                    )
+                    StatCard(
+                        label = "This Year",
+                        value = "${state.yearlySessions}",
                         unit = "sessions",
                         modifier = Modifier.weight(1f)
                     )

@@ -16,6 +16,10 @@ class WorkoutRepository(private val dao: WorkoutSessionDao) {
 
     fun getRecentSessions(limit: Int = 10): Flow<List<WorkoutSession>> = dao.getRecentSessions(limit)
 
+    fun getAllSets(): Flow<List<WorkoutSet>> = dao.getAllSets()
+
+    suspend fun getLastFinishedSession(): WorkoutSession? = dao.getLastFinishedSession()
+
     fun getSetsForExercise(exerciseId: Long): Flow<List<WorkoutSet>> = dao.getSetsForExercise(exerciseId)
 
     suspend fun insertSession(session: WorkoutSession): Long = dao.insertSession(session)

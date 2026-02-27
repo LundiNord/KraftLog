@@ -1,5 +1,6 @@
 package de.nyxnord.kraftlog.ui.history
 
+import android.content.Context
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
@@ -9,20 +10,47 @@ import de.nyxnord.kraftlog.data.local.entity.RoutineExercise
 import de.nyxnord.kraftlog.data.local.entity.WorkoutSession
 import de.nyxnord.kraftlog.data.local.entity.WorkoutSet
 import de.nyxnord.kraftlog.data.local.relation.WorkoutSessionWithSets
+import de.nyxnord.kraftlog.data.preferences.ReminderPreferences
 import de.nyxnord.kraftlog.data.repository.ExerciseRepository
 import de.nyxnord.kraftlog.data.repository.RoutineRepository
 import de.nyxnord.kraftlog.data.repository.WorkoutRepository
+import de.nyxnord.kraftlog.notification.ReminderScheduler
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
+
+data class LifetimeStats(val sessions: Int, val totalVolumeKg: Double, val totalReps: Int)
 
 class HistoryViewModel(
     private val workoutRepo: WorkoutRepository,
     private val exerciseRepo: ExerciseRepository,
-    private val routineRepo: RoutineRepository
+    private val routineRepo: RoutineRepository,
+    private val reminderPreferences: ReminderPreferences
 ) : ViewModel() {
+
+    private val _reminderEnabled = MutableStateFlow(reminderPreferences.enabled)
+    val reminderEnabled: StateFlow<Boolean> = _reminderEnabled.asStateFlow()
+
+    private val _reminderIntervalDays = MutableStateFlow(reminderPreferences.intervalDays)
+    val reminderIntervalDays: StateFlow<Int> = _reminderIntervalDays.asStateFlow()
+
+    fun setReminderEnabled(context: Context, enabled: Boolean) {
+        reminderPreferences.enabled = enabled
+        _reminderEnabled.value = enabled
+        if (enabled) ReminderScheduler.schedule(context)
+        else ReminderScheduler.cancel(context)
+    }
+
+    fun setReminderIntervalDays(context: Context, days: Int) {
+        reminderPreferences.intervalDays = days
+        _reminderIntervalDays.value = days
+        if (reminderPreferences.enabled) ReminderScheduler.reschedule(context)
+    }
 
     val sessions: StateFlow<List<WorkoutSession>> =
         workoutRepo.getAllSessions()
@@ -32,6 +60,17 @@ class HistoryViewModel(
     val allExercises: StateFlow<List<Exercise>> =
         exerciseRepo.getAllExercises()
             .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
+
+    val lifetimeStats: StateFlow<LifetimeStats> = combine(
+        workoutRepo.getAllSessions().map { list -> list.filter { it.finishedAt != null } },
+        workoutRepo.getAllSets()
+    ) { finishedSessions, sets ->
+        LifetimeStats(
+            sessions = finishedSessions.size,
+            totalVolumeKg = sets.sumOf { (it.weightKg * it.reps).toDouble() },
+            totalReps = sets.sumOf { it.reps }
+        )
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), LifetimeStats(0, 0.0, 0))
 
     fun getSessionDetail(id: Long): StateFlow<WorkoutSessionWithSets?> =
         workoutRepo.getSessionWithSets(id)
@@ -63,11 +102,15 @@ class HistoryViewModel(
     }
 
     companion object {
-        fun factory(workoutRepo: WorkoutRepository, exerciseRepo: ExerciseRepository, routineRepo: RoutineRepository) =
-            object : ViewModelProvider.Factory {
-                @Suppress("UNCHECKED_CAST")
-                override fun <T : ViewModel> create(modelClass: Class<T>): T =
-                    HistoryViewModel(workoutRepo, exerciseRepo, routineRepo) as T
-            }
+        fun factory(
+            workoutRepo: WorkoutRepository,
+            exerciseRepo: ExerciseRepository,
+            routineRepo: RoutineRepository,
+            reminderPreferences: ReminderPreferences
+        ) = object : ViewModelProvider.Factory {
+            @Suppress("UNCHECKED_CAST")
+            override fun <T : ViewModel> create(modelClass: Class<T>): T =
+                HistoryViewModel(workoutRepo, exerciseRepo, routineRepo, reminderPreferences) as T
+        }
     }
 }

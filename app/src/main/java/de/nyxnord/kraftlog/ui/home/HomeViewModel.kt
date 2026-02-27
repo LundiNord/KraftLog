@@ -13,12 +13,12 @@ import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.stateIn
 import java.util.Calendar
 
-data class WeeklyStats(val sessions: Int, val totalVolumeKg: Float)
-
 data class HomeUiState(
     val routines: List<RoutineWithExerciseDetails> = emptyList(),
     val recentSessions: List<WorkoutSession> = emptyList(),
-    val weeklyStats: WeeklyStats = WeeklyStats(0, 0f),
+    val weeklySessions: Int = 0,
+    val monthlySessions: Int = 0,
+    val yearlySessions: Int = 0,
     val activeSession: WorkoutSession? = null
 )
 
@@ -29,22 +29,32 @@ class HomeViewModel(
 
     val uiState: StateFlow<HomeUiState> = combine(
         routineRepo.getAllRoutinesWithExerciseDetails(),
-        workoutRepo.getRecentSessions(5),
+        workoutRepo.getAllSessions(),
         workoutRepo.getActiveSession()
-    ) { routines, recent, active ->
-        val weekStart = weekStartMillis()
-        val weekSessions = recent.filter { it.startedAt >= weekStart }
+    ) { routines, allSessions, active ->
+        val finished = allSessions.filter { it.finishedAt != null }
+        val weekStart = periodStartMillis(Calendar.DAY_OF_WEEK)
+        val monthStart = periodStartMillis(Calendar.DAY_OF_MONTH)
+        val yearStart = periodStartMillis(Calendar.DAY_OF_YEAR)
         HomeUiState(
             routines = routines,
-            recentSessions = recent,
-            weeklyStats = WeeklyStats(weekSessions.size, 0f),
+            recentSessions = finished.take(5),
+            weeklySessions = finished.count { it.startedAt >= weekStart },
+            monthlySessions = finished.count { it.startedAt >= monthStart },
+            yearlySessions = finished.count { it.startedAt >= yearStart },
             activeSession = active
         )
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), HomeUiState())
 
-    private fun weekStartMillis(): Long {
+    private fun periodStartMillis(calendarField: Int): Long {
         val cal = Calendar.getInstance()
-        cal.set(Calendar.DAY_OF_WEEK, cal.firstDayOfWeek)
+        when (calendarField) {
+            Calendar.DAY_OF_WEEK -> cal.set(Calendar.DAY_OF_WEEK, cal.firstDayOfWeek)
+            Calendar.DAY_OF_MONTH -> cal.set(Calendar.DAY_OF_MONTH, 1)
+            Calendar.DAY_OF_YEAR -> {
+                cal.set(Calendar.DAY_OF_YEAR, 1)
+            }
+        }
         cal.set(Calendar.HOUR_OF_DAY, 0)
         cal.set(Calendar.MINUTE, 0)
         cal.set(Calendar.SECOND, 0)
