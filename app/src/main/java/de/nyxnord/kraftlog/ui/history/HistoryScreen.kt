@@ -54,9 +54,12 @@ import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.viewmodel.compose.viewModel
 import de.nyxnord.kraftlog.KraftLogApplication
+import de.nyxnord.kraftlog.data.local.entity.BoulderingRoute
+import de.nyxnord.kraftlog.data.local.entity.SessionType
 import de.nyxnord.kraftlog.data.local.entity.WorkoutSession
 import de.nyxnord.kraftlog.data.local.entity.WorkoutSet
 import de.nyxnord.kraftlog.ui.exercises.MuscleDiagram
+import kotlin.math.roundToInt
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -68,7 +71,7 @@ fun HistoryScreen(
     app: KraftLogApplication,
     onSessionClick: (Long) -> Unit
 ) {
-    val vm: HistoryViewModel = viewModel(factory = HistoryViewModel.factory(app.workoutRepository, app.exerciseRepository, app.routineRepository, app.reminderPreferences))
+    val vm: HistoryViewModel = viewModel(factory = HistoryViewModel.factory(app.workoutRepository, app.exerciseRepository, app.routineRepository, app.reminderPreferences, app.alternativeWorkoutRepository))
     val sessions by vm.sessions.collectAsState()
     val lifetimeStats by vm.lifetimeStats.collectAsState()
     val reminderEnabled by vm.reminderEnabled.collectAsState()
@@ -329,12 +332,16 @@ fun SessionDetailScreen(
     onDeleted: () -> Unit = onBack,
     onRoutineCreated: (Long) -> Unit = {}
 ) {
-    val vm: HistoryViewModel = viewModel(factory = HistoryViewModel.factory(app.workoutRepository, app.exerciseRepository, app.routineRepository, app.reminderPreferences))
+    val vm: HistoryViewModel = viewModel(factory = HistoryViewModel.factory(app.workoutRepository, app.exerciseRepository, app.routineRepository, app.reminderPreferences, app.alternativeWorkoutRepository))
     val sessionWithSets by vm.getSessionDetail(sessionId).collectAsState()
     val allExercises by vm.allExercises.collectAsState()
+    val runningEntry by vm.getRunningEntry(sessionId).collectAsState()
+    val boulderingRoutes by vm.getBoulderingRoutes(sessionId).collectAsState()
     var showDeleteDialog by remember { mutableStateOf(false) }
     var showCreateRoutineDialog by remember { mutableStateOf(false) }
     var routineNameInput by remember { mutableStateOf("") }
+
+    val sessionType = sessionWithSets?.session?.sessionType ?: SessionType.STRENGTH.name
 
     if (showCreateRoutineDialog) {
         AlertDialog(
@@ -372,7 +379,7 @@ fun SessionDetailScreen(
         AlertDialog(
             onDismissRequest = { showDeleteDialog = false },
             title = { Text("Delete Workout?") },
-            text = { Text("This will permanently delete the workout and all its logged sets.") },
+            text = { Text("This will permanently delete the workout and all its data.") },
             confirmButton = {
                 TextButton(
                     onClick = {
@@ -415,13 +422,6 @@ fun SessionDetailScreen(
         }
 
         val session = data.session
-        val setsByExercise = data.sets.groupBy { it.exerciseName }
-        val totalVolume = data.sets.sumOf { (it.weightKg * it.reps).toDouble() }
-
-        val exerciseMap = allExercises.associateBy { it.id }
-        val workedExercises = data.sets.map { it.exerciseId }.distinct().mapNotNull { exerciseMap[it] }
-        val workedPrimary = workedExercises.flatMap { it.primaryMuscles }.distinct()
-        val workedSecondary = (workedExercises.flatMap { it.secondaryMuscles }.distinct() - workedPrimary.toSet()).toList()
 
         LazyColumn(
             modifier = Modifier
@@ -430,6 +430,7 @@ fun SessionDetailScreen(
                 .padding(horizontal = 16.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
+            // Common header: date + session duration
             item {
                 Spacer(Modifier.height(8.dp))
                 Row(
@@ -452,50 +453,105 @@ fun SessionDetailScreen(
                 }
             }
 
-            item {
-                Text(
-                    "Total volume: ${"%.1f".format(totalVolume)} kg",
-                    style = MaterialTheme.typography.titleSmall
-                )
-            }
-
-            item {
-                OutlinedButton(
-                    onClick = {
-                        routineNameInput = session.name
-                        showCreateRoutineDialog = true
-                    },
-                    modifier = Modifier.fillMaxWidth()
-                ) { Text("Save as Routine") }
-            }
-
-            if (workedPrimary.isNotEmpty()) {
-                item {
-                    Card(modifier = Modifier.fillMaxWidth()) {
-                        Column(modifier = Modifier.padding(12.dp)) {
-                            Text("Muscles Worked", style = MaterialTheme.typography.titleSmall)
-                            Spacer(Modifier.height(8.dp))
-                            MuscleDiagram(
-                                primaryMuscles = workedPrimary,
-                                secondaryMuscles = workedSecondary
-                            )
+            when (sessionType) {
+                SessionType.RUNNING.name -> {
+                    item {
+                        val entry = runningEntry
+                        Card(modifier = Modifier.fillMaxWidth()) {
+                            Column(
+                                modifier = Modifier.padding(16.dp),
+                                verticalArrangement = Arrangement.spacedBy(8.dp)
+                            ) {
+                                if (entry != null) {
+                                    DetailStatRow("Distance", "%.2f km".format(entry.distanceKm))
+                                    DetailStatRow("Duration", formatElapsedFromSeconds(entry.durationSeconds))
+                                    val pace = runningPaceText(entry.distanceKm, entry.durationSeconds)
+                                    if (pace != null) DetailStatRow("Pace", "$pace /km")
+                                } else {
+                                    Text("No data recorded.", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                }
+                            }
                         }
                     }
                 }
-            }
 
-            setsByExercise.forEach { (exerciseName, sets) ->
-                item {
-                    Text(
-                        exerciseName,
-                        style = MaterialTheme.typography.titleMedium,
-                        modifier = Modifier.padding(top = 8.dp)
-                    )
+                SessionType.BOULDERING.name -> {
+                    item {
+                        val completed = boulderingRoutes.count { it.isCompleted }
+                        val attempted = boulderingRoutes.count { !it.isCompleted }
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(12.dp)
+                        ) {
+                            DetailStat("Routes", "${boulderingRoutes.size}", Modifier.weight(1f))
+                            DetailStat("Completed", "$completed", Modifier.weight(1f))
+                            DetailStat("Attempted", "$attempted", Modifier.weight(1f))
+                        }
+                    }
+                    if (boulderingRoutes.isNotEmpty()) {
+                        item {
+                            Text("Routes", style = MaterialTheme.typography.titleSmall,
+                                modifier = Modifier.padding(top = 4.dp))
+                        }
+                        items(boulderingRoutes, key = { it.id }) { route ->
+                            BoulderingRouteRow(route)
+                            HorizontalDivider()
+                        }
+                    }
                 }
-                items(sets.sortedBy { it.setNumber }, key = { it.id }) { set ->
-                    SetDetailRow(set)
+
+                else -> {
+                    // STRENGTH
+                    val setsByExercise = data.sets.groupBy { it.exerciseName }
+                    val totalVolume = data.sets.sumOf { (it.weightKg * it.reps).toDouble() }
+                    val exerciseMap = allExercises.associateBy { it.id }
+                    val workedExercises = data.sets.map { it.exerciseId }.distinct().mapNotNull { exerciseMap[it] }
+                    val workedPrimary = workedExercises.flatMap { it.primaryMuscles }.distinct()
+                    val workedSecondary = (workedExercises.flatMap { it.secondaryMuscles }.distinct() - workedPrimary.toSet()).toList()
+
+                    item {
+                        Text(
+                            "Total volume: ${"%.1f".format(totalVolume)} kg",
+                            style = MaterialTheme.typography.titleSmall
+                        )
+                    }
+
+                    item {
+                        OutlinedButton(
+                            onClick = {
+                                routineNameInput = session.name
+                                showCreateRoutineDialog = true
+                            },
+                            modifier = Modifier.fillMaxWidth()
+                        ) { Text("Save as Routine") }
+                    }
+
+                    if (workedPrimary.isNotEmpty()) {
+                        item {
+                            Card(modifier = Modifier.fillMaxWidth()) {
+                                Column(modifier = Modifier.padding(12.dp)) {
+                                    Text("Muscles Worked", style = MaterialTheme.typography.titleSmall)
+                                    Spacer(Modifier.height(8.dp))
+                                    MuscleDiagram(
+                                        primaryMuscles = workedPrimary,
+                                        secondaryMuscles = workedSecondary
+                                    )
+                                }
+                            }
+                        }
+                    }
+
+                    setsByExercise.forEach { (exerciseName, sets) ->
+                        item {
+                            Text(exerciseName, style = MaterialTheme.typography.titleMedium,
+                                modifier = Modifier.padding(top = 8.dp))
+                        }
+                        items(sets.sortedBy { it.setNumber }, key = { it.id }) { set ->
+                            SetDetailRow(set)
+                        }
+                        item { HorizontalDivider() }
+                    }
                 }
-                item { HorizontalDivider() }
             }
 
             item { Spacer(Modifier.height(80.dp)) }
@@ -525,7 +581,68 @@ private fun SetDetailRow(set: WorkoutSet) {
     }
 }
 
+@Composable
+private fun DetailStatRow(label: String, value: String) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.SpaceBetween
+    ) {
+        Text(label, style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant)
+        Text(value, style = MaterialTheme.typography.bodyMedium)
+    }
+}
+
+@Composable
+private fun DetailStat(label: String, value: String, modifier: Modifier = Modifier) {
+    Card(modifier = modifier) {
+        Column(
+            modifier = Modifier.padding(12.dp),
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            Text(value, style = MaterialTheme.typography.titleLarge)
+            Text(label, style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant)
+        }
+    }
+}
+
+@Composable
+private fun BoulderingRouteRow(route: BoulderingRoute) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 8.dp),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Text(route.description, style = MaterialTheme.typography.bodyLarge,
+            modifier = Modifier.weight(1f))
+        Text(
+            if (route.isCompleted) "Completed" else "Attempted",
+            style = MaterialTheme.typography.bodySmall,
+            color = if (route.isCompleted) MaterialTheme.colorScheme.primary
+                    else MaterialTheme.colorScheme.onSurfaceVariant
+        )
+    }
+}
+
 private fun formatDuration(millis: Long): String {
     val minutes = TimeUnit.MILLISECONDS.toMinutes(millis)
     return if (minutes < 60) "${minutes}m" else "%dh %dm".format(minutes / 60, minutes % 60)
+}
+
+private fun formatElapsedFromSeconds(seconds: Long): String {
+    val h = seconds / 3600
+    val m = (seconds % 3600) / 60
+    val s = seconds % 60
+    return if (h > 0) "%d:%02d:%02d".format(h, m, s) else "%d:%02d".format(m, s)
+}
+
+private fun runningPaceText(distanceKm: Float, durationSeconds: Long): String? {
+    if (distanceKm <= 0f || durationSeconds <= 0) return null
+    val paceSeconds = (durationSeconds / distanceKm).roundToInt()
+    val m = paceSeconds / 60
+    val s = paceSeconds % 60
+    return "%d:%02d".format(m, s)
 }

@@ -12,20 +12,31 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.DirectionsRun
+import androidx.compose.material.icons.filled.FitnessCenter
 import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material.icons.filled.Terrain
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExtendedFloatingActionButton
 import androidx.compose.material3.Icon
+import androidx.compose.material3.ListItem
+import androidx.compose.material3.ListItemDefaults
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -39,12 +50,59 @@ import java.util.Locale
 @Composable
 fun HomeScreen(
     app: KraftLogApplication,
-    onStartWorkout: (routineId: Long) -> Unit
+    onStartWorkout: (routineId: Long) -> Unit,
+    onStartRunning: () -> Unit,
+    onStartBouldering: () -> Unit
 ) {
     val vm: HomeViewModel = viewModel(
         factory = HomeViewModel.factory(app.routineRepository, app.workoutRepository)
     )
     val state by vm.uiState.collectAsState()
+    var showTypePicker by remember { mutableStateOf(false) }
+
+    if (showTypePicker) {
+        ModalBottomSheet(
+            onDismissRequest = { showTypePicker = false },
+            sheetState = rememberModalBottomSheetState()
+        ) {
+            Text(
+                "Start a Workout",
+                style = MaterialTheme.typography.titleMedium,
+                modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
+            )
+            ListItem(
+                headlineContent = { Text("Strength") },
+                supportingContent = { Text("Track sets, reps and weight") },
+                leadingContent = { Icon(Icons.Default.FitnessCenter, null) },
+                colors = ListItemDefaults.colors(containerColor = Color.Transparent),
+                modifier = Modifier.clickable {
+                    showTypePicker = false
+                    onStartWorkout(-1L)
+                }
+            )
+            ListItem(
+                headlineContent = { Text("Running") },
+                supportingContent = { Text("Log distance and pace") },
+                leadingContent = { Icon(Icons.Default.DirectionsRun, null) },
+                colors = ListItemDefaults.colors(containerColor = Color.Transparent),
+                modifier = Modifier.clickable {
+                    showTypePicker = false
+                    onStartRunning()
+                }
+            )
+            ListItem(
+                headlineContent = { Text("Bouldering") },
+                supportingContent = { Text("Log routes by grade") },
+                leadingContent = { Icon(Icons.Default.Terrain, null) },
+                colors = ListItemDefaults.colors(containerColor = Color.Transparent),
+                modifier = Modifier.clickable {
+                    showTypePicker = false
+                    onStartBouldering()
+                }
+            )
+            Spacer(Modifier.height(32.dp))
+        }
+    }
 
     Scaffold(
         topBar = {
@@ -52,7 +110,7 @@ fun HomeScreen(
         },
         floatingActionButton = {
             ExtendedFloatingActionButton(
-                onClick = { onStartWorkout(-1L) },
+                onClick = { showTypePicker = true },
                 icon = { Icon(Icons.Default.PlayArrow, contentDescription = null) },
                 text = { Text("Quick Workout") }
             )
@@ -101,7 +159,7 @@ fun HomeScreen(
                 }
             }
 
-            // Active session banner
+            // Active session banner (STRENGTH only — others start fresh)
             state.activeSession?.let { active ->
                 item {
                     Card(

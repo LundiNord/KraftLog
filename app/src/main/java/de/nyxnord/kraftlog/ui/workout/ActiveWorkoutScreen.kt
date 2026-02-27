@@ -382,7 +382,7 @@ private fun SetInputRow(
     }
 }
 
-private fun formatElapsed(seconds: Long): String {
+fun formatElapsed(seconds: Long): String {
     val h = seconds / 3600
     val m = (seconds % 3600) / 60
     val s = seconds % 60

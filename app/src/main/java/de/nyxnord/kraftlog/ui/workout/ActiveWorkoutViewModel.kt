@@ -3,6 +3,7 @@ package de.nyxnord.kraftlog.ui.workout
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
+import de.nyxnord.kraftlog.data.local.entity.SessionType
 import de.nyxnord.kraftlog.data.local.entity.WorkoutSession
 import de.nyxnord.kraftlog.data.local.entity.WorkoutSet
 import de.nyxnord.kraftlog.data.repository.ExerciseRepository
@@ -65,9 +66,9 @@ class ActiveWorkoutViewModel(
     }
 
     private suspend fun initSession() {
-        // Restore an existing unfinished session if one exists
+        // Restore an existing unfinished strength session if one exists
         val existingSession = workoutRepo.getActiveSessionSync()
-        if (existingSession != null) {
+        if (existingSession != null && existingSession.sessionType == SessionType.STRENGTH.name) {
             restoreSession(existingSession)
             return
         }
@@ -88,7 +89,8 @@ class ActiveWorkoutViewModel(
         val sessionId = workoutRepo.insertSession(
             WorkoutSession(
                 routineId = if (routineId == -1L) null else routineId,
-                name = sessionName
+                name = sessionName,
+                sessionType = SessionType.STRENGTH.name
             )
         )
 

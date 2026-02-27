@@ -7,14 +7,17 @@ import androidx.room.RoomDatabase
 import androidx.room.TypeConverters
 import androidx.room.migration.Migration
 import androidx.sqlite.db.SupportSQLiteDatabase
+import de.nyxnord.kraftlog.data.local.dao.AlternativeWorkoutDao
 import de.nyxnord.kraftlog.data.local.dao.ExerciseDao
 import de.nyxnord.kraftlog.data.local.dao.RoutineDao
 import de.nyxnord.kraftlog.data.local.dao.WorkoutSessionDao
+import de.nyxnord.kraftlog.data.local.entity.BoulderingRoute
 import de.nyxnord.kraftlog.data.local.entity.Exercise
 import de.nyxnord.kraftlog.data.local.entity.ExerciseCategory
 import de.nyxnord.kraftlog.data.local.entity.MuscleGroup
 import de.nyxnord.kraftlog.data.local.entity.Routine
 import de.nyxnord.kraftlog.data.local.entity.RoutineExercise
+import de.nyxnord.kraftlog.data.local.entity.RunningEntry
 import de.nyxnord.kraftlog.data.local.entity.WorkoutSession
 import de.nyxnord.kraftlog.data.local.entity.WorkoutSet
 import kotlinx.coroutines.CoroutineScope
@@ -22,8 +25,9 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 
 @Database(
-    entities = [Exercise::class, Routine::class, RoutineExercise::class, WorkoutSession::class, WorkoutSet::class],
-    version = 3,
+    entities = [Exercise::class, Routine::class, RoutineExercise::class, WorkoutSession::class, WorkoutSet::class,
+                RunningEntry::class, BoulderingRoute::class],
+    version = 4,
     exportSchema = false
 )
 @TypeConverters(Converters::class)
@@ -32,6 +36,7 @@ abstract class KraftLogDatabase : RoomDatabase() {
     abstract fun exerciseDao(): ExerciseDao
     abstract fun routineDao(): RoutineDao
     abstract fun workoutSessionDao(): WorkoutSessionDao
+    abstract fun alternativeWorkoutDao(): AlternativeWorkoutDao
 
     companion object {
         @Volatile
@@ -53,6 +58,34 @@ abstract class KraftLogDatabase : RoomDatabase() {
             }
         }
 
+        private val MIGRATION_3_4 = object : Migration(3, 4) {
+            override fun migrate(database: SupportSQLiteDatabase) {
+                database.execSQL(
+                    "ALTER TABLE workout_sessions ADD COLUMN sessionType TEXT NOT NULL DEFAULT 'STRENGTH'"
+                )
+                database.execSQL("""
+                    CREATE TABLE IF NOT EXISTS running_entries (
+                        id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                        sessionId INTEGER NOT NULL,
+                        distanceKm REAL NOT NULL,
+                        durationSeconds INTEGER NOT NULL,
+                        FOREIGN KEY(sessionId) REFERENCES workout_sessions(id) ON DELETE CASCADE
+                    )
+                """.trimIndent())
+                database.execSQL("CREATE INDEX IF NOT EXISTS index_running_entries_sessionId ON running_entries(sessionId)")
+                database.execSQL("""
+                    CREATE TABLE IF NOT EXISTS bouldering_routes (
+                        id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                        sessionId INTEGER NOT NULL,
+                        grade TEXT NOT NULL,
+                        isCompleted INTEGER NOT NULL DEFAULT 1,
+                        FOREIGN KEY(sessionId) REFERENCES workout_sessions(id) ON DELETE CASCADE
+                    )
+                """.trimIndent())
+                database.execSQL("CREATE INDEX IF NOT EXISTS index_bouldering_routes_sessionId ON bouldering_routes(sessionId)")
+            }
+        }
+
         fun getInstance(context: Context): KraftLogDatabase {
             return INSTANCE ?: synchronized(this) {
                 Room.databaseBuilder(
@@ -60,7 +93,7 @@ abstract class KraftLogDatabase : RoomDatabase() {
                     KraftLogDatabase::class.java,
                     "kraftlog.db"
                 )
-                    .addMigrations(MIGRATION_1_2, MIGRATION_2_3)
+                    .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4)
                     .addCallback(SeedCallback())
                     .build()
                     .also { INSTANCE = it }

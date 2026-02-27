@@ -3,6 +3,7 @@ package de.nyxnord.kraftlog.ui.home
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
+import de.nyxnord.kraftlog.data.local.entity.SessionType
 import de.nyxnord.kraftlog.data.local.entity.WorkoutSession
 import de.nyxnord.kraftlog.data.repository.RoutineRepository
 import de.nyxnord.kraftlog.data.repository.WorkoutRepository
@@ -42,7 +43,7 @@ class HomeViewModel(
             weeklySessions = finished.count { it.startedAt >= weekStart },
             monthlySessions = finished.count { it.startedAt >= monthStart },
             yearlySessions = finished.count { it.startedAt >= yearStart },
-            activeSession = active
+            activeSession = if (active?.sessionType == SessionType.STRENGTH.name) active else null
         )
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), HomeUiState())
 

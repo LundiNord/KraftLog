@@ -23,6 +23,8 @@ import de.nyxnord.kraftlog.ui.routines.RoutineDetailScreen
 import de.nyxnord.kraftlog.ui.routines.RoutineEditScreen
 import de.nyxnord.kraftlog.ui.routines.RoutinesScreen
 import de.nyxnord.kraftlog.ui.workout.ActiveWorkoutScreen
+import de.nyxnord.kraftlog.ui.workout.BoulderingWorkoutScreen
+import de.nyxnord.kraftlog.ui.workout.RunningWorkoutScreen
 import de.nyxnord.kraftlog.ui.workout.WorkoutSummaryScreen
 
 enum class TopLevelDestination(
@@ -57,6 +59,12 @@ fun KraftLogNavHost(
                 app = app,
                 onStartWorkout = { routineId ->
                     navController.navigate("active_workout/$routineId")
+                },
+                onStartRunning = {
+                    navController.navigate("running_workout")
+                },
+                onStartBouldering = {
+                    navController.navigate("bouldering_workout")
                 }
             )
         }
@@ -90,6 +98,30 @@ fun KraftLogNavHost(
                         popUpTo("home") { inclusive = true }
                     }
                 }
+            )
+        }
+
+        composable("running_workout") {
+            RunningWorkoutScreen(
+                app = app,
+                onFinished = { sessionId ->
+                    navController.navigate("workout_summary/$sessionId") {
+                        popUpTo("home") { inclusive = false }
+                    }
+                },
+                onDiscarded = { navController.popBackStack() }
+            )
+        }
+
+        composable("bouldering_workout") {
+            BoulderingWorkoutScreen(
+                app = app,
+                onFinished = { sessionId ->
+                    navController.navigate("workout_summary/$sessionId") {
+                        popUpTo("home") { inclusive = false }
+                    }
+                },
+                onDiscarded = { navController.popBackStack() }
             )
         }
 

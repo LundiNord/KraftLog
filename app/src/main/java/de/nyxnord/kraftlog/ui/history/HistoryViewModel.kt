@@ -4,13 +4,16 @@ import android.content.Context
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
+import de.nyxnord.kraftlog.data.local.entity.BoulderingRoute
 import de.nyxnord.kraftlog.data.local.entity.Exercise
 import de.nyxnord.kraftlog.data.local.entity.Routine
 import de.nyxnord.kraftlog.data.local.entity.RoutineExercise
+import de.nyxnord.kraftlog.data.local.entity.RunningEntry
 import de.nyxnord.kraftlog.data.local.entity.WorkoutSession
 import de.nyxnord.kraftlog.data.local.entity.WorkoutSet
 import de.nyxnord.kraftlog.data.local.relation.WorkoutSessionWithSets
 import de.nyxnord.kraftlog.data.preferences.ReminderPreferences
+import de.nyxnord.kraftlog.data.repository.AlternativeWorkoutRepository
 import de.nyxnord.kraftlog.data.repository.ExerciseRepository
 import de.nyxnord.kraftlog.data.repository.RoutineRepository
 import de.nyxnord.kraftlog.data.repository.WorkoutRepository
@@ -30,7 +33,8 @@ class HistoryViewModel(
     private val workoutRepo: WorkoutRepository,
     private val exerciseRepo: ExerciseRepository,
     private val routineRepo: RoutineRepository,
-    private val reminderPreferences: ReminderPreferences
+    private val reminderPreferences: ReminderPreferences,
+    private val altRepo: AlternativeWorkoutRepository
 ) : ViewModel() {
 
     private val _reminderEnabled = MutableStateFlow(reminderPreferences.enabled)
@@ -72,9 +76,27 @@ class HistoryViewModel(
         )
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), LifetimeStats(0, 0.0, 0))
 
+    // Cached per session ID so recompositions don't recreate flows starting from null
+    private val sessionDetailCache = HashMap<Long, StateFlow<WorkoutSessionWithSets?>>()
     fun getSessionDetail(id: Long): StateFlow<WorkoutSessionWithSets?> =
-        workoutRepo.getSessionWithSets(id)
-            .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
+        sessionDetailCache.getOrPut(id) {
+            workoutRepo.getSessionWithSets(id)
+                .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
+        }
+
+    private val runningEntryCache = HashMap<Long, StateFlow<RunningEntry?>>()
+    fun getRunningEntry(sessionId: Long): StateFlow<RunningEntry?> =
+        runningEntryCache.getOrPut(sessionId) {
+            altRepo.getRunningEntry(sessionId)
+                .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
+        }
+
+    private val boulderingRoutesCache = HashMap<Long, StateFlow<List<BoulderingRoute>>>()
+    fun getBoulderingRoutes(sessionId: Long): StateFlow<List<BoulderingRoute>> =
+        boulderingRoutesCache.getOrPut(sessionId) {
+            altRepo.getBoulderingRoutes(sessionId)
+                .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
+        }
 
     fun deleteSession(session: WorkoutSession) {
         viewModelScope.launch { workoutRepo.deleteSession(session) }
@@ -106,11 +128,12 @@ class HistoryViewModel(
             workoutRepo: WorkoutRepository,
             exerciseRepo: ExerciseRepository,
             routineRepo: RoutineRepository,
-            reminderPreferences: ReminderPreferences
+            reminderPreferences: ReminderPreferences,
+            altRepo: AlternativeWorkoutRepository
         ) = object : ViewModelProvider.Factory {
             @Suppress("UNCHECKED_CAST")
             override fun <T : ViewModel> create(modelClass: Class<T>): T =
-                HistoryViewModel(workoutRepo, exerciseRepo, routineRepo, reminderPreferences) as T
+                HistoryViewModel(workoutRepo, exerciseRepo, routineRepo, reminderPreferences, altRepo) as T
         }
     }
 }

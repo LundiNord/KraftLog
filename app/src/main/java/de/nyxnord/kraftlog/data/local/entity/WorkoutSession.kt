@@ -24,5 +24,6 @@ data class WorkoutSession(
     val name: String,
     val startedAt: Long = System.currentTimeMillis(),
     val finishedAt: Long? = null,
-    val notes: String = ""
+    val notes: String = "",
+    val sessionType: String = SessionType.STRENGTH.name
 )
