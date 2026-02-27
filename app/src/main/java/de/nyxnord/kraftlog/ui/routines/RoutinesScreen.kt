@@ -204,12 +204,34 @@ fun RoutineDetailScreen(
     app: KraftLogApplication,
     onStartWorkout: () -> Unit,
     onEdit: () -> Unit,
-    onBack: () -> Unit
+    onBack: () -> Unit,
+    onDeleted: () -> Unit = onBack
 ) {
     val vm: RoutinesViewModel = viewModel(factory = RoutinesViewModel.factory(app.routineRepository))
     val routineDetail by vm.getRoutineDetail(routineId).collectAsState()
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
+    var showDeleteDialog by remember { mutableStateOf(false) }
+
+    if (showDeleteDialog) {
+        AlertDialog(
+            onDismissRequest = { showDeleteDialog = false },
+            title = { Text("Delete Routine?") },
+            text = { Text("\"${routineDetail?.routine?.name ?: "This routine"}\" will be permanently deleted.") },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        routineDetail?.routine?.let { vm.deleteRoutine(it) }
+                        showDeleteDialog = false
+                        onDeleted()
+                    }
+                ) { Text("Delete", color = MaterialTheme.colorScheme.error) }
+            },
+            dismissButton = {
+                TextButton(onClick = { showDeleteDialog = false }) { Text("Cancel") }
+            }
+        )
+    }
 
     val exportLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.CreateDocument("application/json")
@@ -242,6 +264,10 @@ fun RoutineDetailScreen(
                     }
                     IconButton(onClick = onEdit) {
                         Icon(Icons.Default.Edit, "Edit")
+                    }
+                    IconButton(onClick = { showDeleteDialog = true }) {
+                        Icon(Icons.Default.Delete, "Delete routine",
+                            tint = MaterialTheme.colorScheme.error)
                     }
                 }
             )

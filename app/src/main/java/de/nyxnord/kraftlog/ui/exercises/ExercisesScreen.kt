@@ -1,5 +1,6 @@
 package de.nyxnord.kraftlog.ui.exercises
 
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -20,6 +21,7 @@ import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
+import androidx.compose.material3.Card
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExposedDropdownMenuBox
@@ -47,7 +49,11 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.nativeCanvas
+import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import de.nyxnord.kraftlog.KraftLogApplication
 import de.nyxnord.kraftlog.data.local.entity.Exercise
@@ -295,6 +301,9 @@ fun ExerciseDetailScreen(
 
             if (detailState.recentSets.isNotEmpty()) {
                 item {
+                    WeightProgressChart(sets = detailState.recentSets)
+                }
+                item {
                     Text("Recent Sets", style = MaterialTheme.typography.titleMedium,
                         modifier = Modifier.padding(top = 8.dp))
                 }
@@ -305,6 +314,126 @@ fun ExerciseDetailScreen(
             }
 
             item { Spacer(Modifier.height(80.dp)) }
+        }
+    }
+}
+
+@Composable
+private fun WeightProgressChart(sets: List<WorkoutSet>) {
+    // Group by session, get max weight per session, sorted oldest→newest, last 10 sessions
+    val dataPoints = sets
+        .groupBy { it.sessionId }
+        .mapValues { (_, s) -> s.maxByOrNull { it.weightKg } }
+        .values
+        .filterNotNull()
+        .filter { !it.isBodyweight }
+        .sortedBy { it.loggedAt }
+        .takeLast(10)
+
+    if (dataPoints.size < 2) return
+
+    val maxWeight = dataPoints.maxOf { it.weightKg }
+    val minWeight = dataPoints.minOf { it.weightKg }
+    val weightRange = (maxWeight - minWeight).coerceAtLeast(1f)
+    val dateFormat = java.text.SimpleDateFormat("dd MMM", java.util.Locale.getDefault())
+
+    Card(modifier = Modifier.fillMaxWidth()) {
+        Column(modifier = Modifier.padding(16.dp)) {
+            Text("Progress", style = MaterialTheme.typography.titleSmall)
+            Spacer(Modifier.height(8.dp))
+
+            val lineColor = MaterialTheme.colorScheme.primary
+            val labelColor = MaterialTheme.colorScheme.onSurfaceVariant
+
+            Canvas(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(140.dp)
+            ) {
+                val padL = 52f
+                val padR = 16f
+                val padT = 16f
+                val padB = 36f
+                val chartW = size.width - padL - padR
+                val chartH = size.height - padT - padB
+                val xStep = chartW / (dataPoints.size - 1)
+
+                val points = dataPoints.mapIndexed { i, s ->
+                    Offset(
+                        x = padL + i * xStep,
+                        y = padT + chartH - (s.weightKg - minWeight) / weightRange * chartH
+                    )
+                }
+
+                // Grid line at top and bottom
+                drawLine(
+                    color = labelColor.copy(alpha = 0.2f),
+                    start = Offset(padL, padT),
+                    end = Offset(padL + chartW, padT),
+                    strokeWidth = 1f
+                )
+                drawLine(
+                    color = labelColor.copy(alpha = 0.2f),
+                    start = Offset(padL, padT + chartH),
+                    end = Offset(padL + chartW, padT + chartH),
+                    strokeWidth = 1f
+                )
+
+                // Line segments
+                for (i in 0 until points.size - 1) {
+                    drawLine(
+                        color = lineColor,
+                        start = points[i],
+                        end = points[i + 1],
+                        strokeWidth = 2.5f
+                    )
+                }
+
+                // Dots
+                points.forEach { pt ->
+                    drawCircle(color = lineColor, radius = 5f, center = pt)
+                    drawCircle(
+                        color = androidx.compose.ui.graphics.Color.White,
+                        radius = 2.5f,
+                        center = pt
+                    )
+                }
+
+                // Y-axis labels
+                val yPaint = android.graphics.Paint().apply {
+                    textSize = 10.sp.toPx()
+                    color = labelColor.toArgb()
+                    textAlign = android.graphics.Paint.Align.RIGHT
+                    isAntiAlias = true
+                }
+                drawContext.canvas.nativeCanvas.drawText(
+                    "${maxWeight.toInt()} kg",
+                    padL - 6f, padT + yPaint.textSize * 0.4f, yPaint
+                )
+                drawContext.canvas.nativeCanvas.drawText(
+                    "${minWeight.toInt()} kg",
+                    padL - 6f, padT + chartH + yPaint.textSize * 0.4f, yPaint
+                )
+
+                // X-axis date labels — skip every other if crowded
+                val skipStep = if (dataPoints.size > 6) 2 else 1
+                val xPaint = android.graphics.Paint().apply {
+                    textSize = 10.sp.toPx()
+                    color = labelColor.toArgb()
+                    textAlign = android.graphics.Paint.Align.CENTER
+                    isAntiAlias = true
+                }
+                dataPoints.forEachIndexed { i, s ->
+                    if (i % skipStep == 0 || i == dataPoints.size - 1) {
+                        drawContext.canvas.nativeCanvas.drawText(
+                            dateFormat.format(java.util.Date(s.loggedAt)),
+                            padL + i * xStep,
+                            size.height - 4f,
+                            xPaint
+                        )
+                    }
+                }
+            }
         }
     }
 }

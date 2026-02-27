@@ -40,6 +40,7 @@ data class ActiveWorkoutUiState(
     val elapsedSeconds: Long = 0,
     val exercises: List<LiveExercise> = emptyList(),
     val isFinished: Boolean = false,
+    val isDiscarded: Boolean = false,
     val isLoading: Boolean = true,
     val restTimerSeconds: Int? = null
 )
@@ -215,7 +216,7 @@ class ActiveWorkoutViewModel(
     fun discardWorkout() {
         viewModelScope.launch {
             workoutRepo.deleteSessionById(_uiState.value.sessionId)
-            _uiState.update { it.copy(isFinished = true) }
+            _uiState.update { it.copy(isDiscarded = true) }
         }
     }
 

@@ -23,6 +23,7 @@ import de.nyxnord.kraftlog.ui.routines.RoutineDetailScreen
 import de.nyxnord.kraftlog.ui.routines.RoutineEditScreen
 import de.nyxnord.kraftlog.ui.routines.RoutinesScreen
 import de.nyxnord.kraftlog.ui.workout.ActiveWorkoutScreen
+import de.nyxnord.kraftlog.ui.workout.WorkoutSummaryScreen
 
 enum class TopLevelDestination(
     val label: String,
@@ -67,7 +68,28 @@ fun KraftLogNavHost(
             ActiveWorkoutScreen(
                 routineId = routineId,
                 app = app,
-                onFinish = { navController.popBackStack() }
+                onFinished = { sessionId ->
+                    navController.navigate("workout_summary/$sessionId") {
+                        popUpTo("home") { inclusive = false }
+                    }
+                },
+                onDiscarded = { navController.popBackStack() }
+            )
+        }
+
+        composable(
+            route = "workout_summary/{sessionId}",
+            arguments = listOf(navArgument("sessionId") { type = NavType.LongType })
+        ) { backStack ->
+            val sessionId = backStack.arguments?.getLong("sessionId") ?: return@composable
+            WorkoutSummaryScreen(
+                sessionId = sessionId,
+                app = app,
+                onDone = {
+                    navController.navigate("home") {
+                        popUpTo("home") { inclusive = true }
+                    }
+                }
             )
         }
 
@@ -89,7 +111,8 @@ fun KraftLogNavHost(
                 app = app,
                 onStartWorkout = { navController.navigate("active_workout/$routineId") },
                 onEdit = { navController.navigate("routines/$routineId/edit") },
-                onBack = { navController.popBackStack() }
+                onBack = { navController.popBackStack() },
+                onDeleted = { navController.popBackStack() }
             )
         }
         composable(
@@ -143,7 +166,8 @@ fun KraftLogNavHost(
             SessionDetailScreen(
                 sessionId = sessionId,
                 app = app,
-                onBack = { navController.popBackStack() }
+                onBack = { navController.popBackStack() },
+                onDeleted = { navController.popBackStack() }
             )
         }
 

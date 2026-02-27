@@ -1,5 +1,6 @@
 package de.nyxnord.kraftlog.ui.history
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -14,7 +15,13 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
+import androidx.compose.material3.SwipeToDismissBox
+import androidx.compose.material3.SwipeToDismissBoxValue
+import androidx.compose.material3.TextButton
+import androidx.compose.material3.rememberSwipeToDismissBoxState
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
@@ -26,6 +33,9 @@ import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
@@ -84,7 +94,34 @@ fun HistoryScreen(
                         )
                     }
                     items(monthlySessions, key = { it.id }) { session ->
-                        SessionCard(session = session, onClick = { onSessionClick(session.id) })
+                        val dismissState = rememberSwipeToDismissBoxState(
+                            confirmValueChange = { value ->
+                                if (value == SwipeToDismissBoxValue.EndToStart) {
+                                    vm.deleteSession(session)
+                                    true
+                                } else false
+                            }
+                        )
+                        SwipeToDismissBox(
+                            state = dismissState,
+                            backgroundContent = {
+                                Box(
+                                    modifier = Modifier
+                                        .fillMaxSize()
+                                        .background(MaterialTheme.colorScheme.errorContainer)
+                                        .padding(end = 20.dp),
+                                    contentAlignment = Alignment.CenterEnd
+                                ) {
+                                    Icon(
+                                        Icons.Default.Delete,
+                                        contentDescription = "Delete",
+                                        tint = MaterialTheme.colorScheme.onErrorContainer
+                                    )
+                                }
+                            }
+                        ) {
+                            SessionCard(session = session, onClick = { onSessionClick(session.id) })
+                        }
                     }
                 }
                 item { Spacer(Modifier.height(80.dp)) }
@@ -131,10 +168,32 @@ private fun SessionCard(session: WorkoutSession, onClick: () -> Unit) {
 fun SessionDetailScreen(
     sessionId: Long,
     app: KraftLogApplication,
-    onBack: () -> Unit
+    onBack: () -> Unit,
+    onDeleted: () -> Unit = onBack
 ) {
     val vm: HistoryViewModel = viewModel(factory = HistoryViewModel.factory(app.workoutRepository))
     val sessionWithSets by vm.getSessionDetail(sessionId).collectAsState()
+    var showDeleteDialog by remember { mutableStateOf(false) }
+
+    if (showDeleteDialog) {
+        AlertDialog(
+            onDismissRequest = { showDeleteDialog = false },
+            title = { Text("Delete Workout?") },
+            text = { Text("This will permanently delete the workout and all its logged sets.") },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        sessionWithSets?.session?.let { vm.deleteSession(it) }
+                        showDeleteDialog = false
+                        onDeleted()
+                    }
+                ) { Text("Delete", color = MaterialTheme.colorScheme.error) }
+            },
+            dismissButton = {
+                TextButton(onClick = { showDeleteDialog = false }) { Text("Cancel") }
+            }
+        )
+    }
 
     Scaffold(
         topBar = {
@@ -143,6 +202,12 @@ fun SessionDetailScreen(
                 navigationIcon = {
                     IconButton(onClick = onBack) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, "Back")
+                    }
+                },
+                actions = {
+                    IconButton(onClick = { showDeleteDialog = true }) {
+                        Icon(Icons.Default.Delete, "Delete workout",
+                            tint = MaterialTheme.colorScheme.error)
                     }
                 }
             )

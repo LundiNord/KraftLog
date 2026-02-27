@@ -6,6 +6,7 @@ import androidx.lifecycle.viewModelScope
 import de.nyxnord.kraftlog.data.local.entity.WorkoutSession
 import de.nyxnord.kraftlog.data.local.relation.WorkoutSessionWithSets
 import de.nyxnord.kraftlog.data.repository.WorkoutRepository
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.map
@@ -21,6 +22,10 @@ class HistoryViewModel(private val workoutRepo: WorkoutRepository) : ViewModel()
     fun getSessionDetail(id: Long): StateFlow<WorkoutSessionWithSets?> =
         workoutRepo.getSessionWithSets(id)
             .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
+
+    fun deleteSession(session: WorkoutSession) {
+        viewModelScope.launch { workoutRepo.deleteSession(session) }
+    }
 
     companion object {
         fun factory(workoutRepo: WorkoutRepository) =

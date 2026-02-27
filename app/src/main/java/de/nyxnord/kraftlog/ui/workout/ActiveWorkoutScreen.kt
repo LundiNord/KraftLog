@@ -57,8 +57,8 @@ import de.nyxnord.kraftlog.ui.exercises.ExercisesViewModel
 fun ActiveWorkoutScreen(
     routineId: Long,
     app: KraftLogApplication,
-    onFinish: () -> Unit,
-    onPickExercise: (Long) -> Unit = {}
+    onFinished: (sessionId: Long) -> Unit,
+    onDiscarded: () -> Unit
 ) {
     val vm: ActiveWorkoutViewModel = viewModel(
         key = "active_workout_$routineId",
@@ -74,7 +74,10 @@ fun ActiveWorkoutScreen(
     val restSheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
 
     LaunchedEffect(state.isFinished) {
-        if (state.isFinished) onFinish()
+        if (state.isFinished) onFinished(state.sessionId)
+    }
+    LaunchedEffect(state.isDiscarded) {
+        if (state.isDiscarded) onDiscarded()
     }
 
     Scaffold(
