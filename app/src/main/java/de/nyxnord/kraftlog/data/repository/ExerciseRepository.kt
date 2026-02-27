@@ -16,6 +16,8 @@ class ExerciseRepository(private val dao: ExerciseDao) {
 
     suspend fun getExerciseById(id: Long): Exercise? = dao.getExerciseById(id)
 
+    suspend fun getByName(name: String): Exercise? = dao.getByName(name)
+
     suspend fun insertExercise(exercise: Exercise): Long = dao.insertExercise(exercise)
 
     suspend fun updateExercise(exercise: Exercise) = dao.updateExercise(exercise)

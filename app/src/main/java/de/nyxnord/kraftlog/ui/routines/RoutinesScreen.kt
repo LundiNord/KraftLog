@@ -15,12 +15,16 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.FileDownload
 import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material.icons.filled.Share
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
@@ -51,8 +55,12 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import androidx.lifecycle.viewmodel.compose.viewModel
 import de.nyxnord.kraftlog.KraftLogApplication
 import de.nyxnord.kraftlog.data.local.entity.Exercise
@@ -72,9 +80,46 @@ fun RoutinesScreen(
 ) {
     val vm: RoutinesViewModel = viewModel(factory = RoutinesViewModel.factory(app.routineRepository))
     val routines by vm.routines.collectAsState()
+    val context = LocalContext.current
+    val scope = rememberCoroutineScope()
+    var showImportError by remember { mutableStateOf(false) }
+
+    val importLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.OpenDocument()
+    ) { uri ->
+        uri ?: return@rememberLauncherForActivityResult
+        scope.launch {
+            val json = withContext(Dispatchers.IO) {
+                context.contentResolver.openInputStream(uri)?.bufferedReader()?.readText()
+            }
+            if (json == null || !vm.importRoutineFromJson(json, app.exerciseRepository)) {
+                showImportError = true
+            }
+        }
+    }
+
+    if (showImportError) {
+        AlertDialog(
+            onDismissRequest = { showImportError = false },
+            title = { Text("Import Failed") },
+            text = { Text("The file could not be imported. Make sure it is a valid KraftLog routine file.") },
+            confirmButton = {
+                TextButton(onClick = { showImportError = false }) { Text("OK") }
+            }
+        )
+    }
 
     Scaffold(
-        topBar = { TopAppBar(title = { Text("Routines") }) },
+        topBar = {
+            TopAppBar(
+                title = { Text("Routines") },
+                actions = {
+                    IconButton(onClick = { importLauncher.launch(arrayOf("application/json", "*/*")) }) {
+                        Icon(Icons.Default.FileDownload, "Import routine")
+                    }
+                }
+            )
+        },
         floatingActionButton = {
             FloatingActionButton(onClick = onCreateRoutine) {
                 Icon(Icons.Default.Add, "Create routine")
@@ -163,6 +208,20 @@ fun RoutineDetailScreen(
 ) {
     val vm: RoutinesViewModel = viewModel(factory = RoutinesViewModel.factory(app.routineRepository))
     val routineDetail by vm.getRoutineDetail(routineId).collectAsState()
+    val context = LocalContext.current
+    val scope = rememberCoroutineScope()
+
+    val exportLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.CreateDocument("application/json")
+    ) { uri ->
+        uri ?: return@rememberLauncherForActivityResult
+        scope.launch {
+            val json = vm.exportRoutineJson(routineId)
+            withContext(Dispatchers.IO) {
+                context.contentResolver.openOutputStream(uri)?.use { it.write(json.toByteArray()) }
+            }
+        }
+    }
 
     Scaffold(
         topBar = {
@@ -174,6 +233,13 @@ fun RoutineDetailScreen(
                     }
                 },
                 actions = {
+                    IconButton(onClick = {
+                        val filename = (routineDetail?.routine?.name ?: "routine")
+                            .replace(Regex("[^a-zA-Z0-9_\\- ]"), "_")
+                        exportLauncher.launch("$filename.json")
+                    }) {
+                        Icon(Icons.Default.Share, "Export routine")
+                    }
                     IconButton(onClick = onEdit) {
                         Icon(Icons.Default.Edit, "Edit")
                     }

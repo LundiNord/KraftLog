@@ -1,4 +1,4 @@
-package de.nyxnord.kraftlog.data.local.entity
+ package de.nyxnord.kraftlog.data.local.entity
 
 enum class ExerciseCategory {
     STRENGTH,
