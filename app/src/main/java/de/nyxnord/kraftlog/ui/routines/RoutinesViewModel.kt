@@ -9,6 +9,7 @@ import de.nyxnord.kraftlog.data.local.relation.RoutineWithExerciseDetails
 import de.nyxnord.kraftlog.data.repository.RoutineRepository
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 
@@ -21,6 +22,9 @@ class RoutinesViewModel(private val routineRepo: RoutineRepository) : ViewModel(
     fun getRoutineDetail(id: Long): StateFlow<RoutineWithExerciseDetails?> =
         routineRepo.getRoutineWithExerciseDetails(id)
             .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
+
+    suspend fun loadRoutineForEdit(id: Long): RoutineWithExerciseDetails? =
+        routineRepo.getRoutineWithExerciseDetails(id).first()
 
     fun deleteRoutine(routine: Routine) {
         viewModelScope.launch { routineRepo.deleteRoutine(routine) }

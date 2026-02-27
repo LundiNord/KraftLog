@@ -5,6 +5,7 @@ import androidx.room.Database
 import androidx.room.Room
 import androidx.room.RoomDatabase
 import androidx.room.TypeConverters
+import androidx.room.migration.Migration
 import androidx.sqlite.db.SupportSQLiteDatabase
 import de.nyxnord.kraftlog.data.local.dao.ExerciseDao
 import de.nyxnord.kraftlog.data.local.dao.RoutineDao
@@ -22,7 +23,7 @@ import kotlinx.coroutines.launch
 
 @Database(
     entities = [Exercise::class, Routine::class, RoutineExercise::class, WorkoutSession::class, WorkoutSet::class],
-    version = 1,
+    version = 2,
     exportSchema = false
 )
 @TypeConverters(Converters::class)
@@ -36,6 +37,14 @@ abstract class KraftLogDatabase : RoomDatabase() {
         @Volatile
         private var INSTANCE: KraftLogDatabase? = null
 
+        private val MIGRATION_1_2 = object : Migration(1, 2) {
+            override fun migrate(database: SupportSQLiteDatabase) {
+                database.execSQL(
+                    "ALTER TABLE routine_exercises ADD COLUMN targetWeightsPerSet TEXT NOT NULL DEFAULT ''"
+                )
+            }
+        }
+
         fun getInstance(context: Context): KraftLogDatabase {
             return INSTANCE ?: synchronized(this) {
                 Room.databaseBuilder(
@@ -43,6 +52,7 @@ abstract class KraftLogDatabase : RoomDatabase() {
                     KraftLogDatabase::class.java,
                     "kraftlog.db"
                 )
+                    .addMigrations(MIGRATION_1_2)
                     .addCallback(SeedCallback())
                     .build()
                     .also { INSTANCE = it }

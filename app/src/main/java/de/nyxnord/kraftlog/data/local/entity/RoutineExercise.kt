@@ -30,6 +30,7 @@ data class RoutineExercise(
     val targetSets: Int = 3,
     val targetReps: Int = 10,
     val targetWeightKg: Float? = null,
+    val targetWeightsPerSet: String = "", // comma-separated per-set weights, e.g. "60.0,65.0,70.0"
     val restSeconds: Int = 90,
     val notes: String = ""
 )
