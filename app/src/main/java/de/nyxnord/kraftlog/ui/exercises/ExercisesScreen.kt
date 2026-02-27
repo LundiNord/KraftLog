@@ -278,17 +278,44 @@ fun ExerciseDetailScreen(
                     )
                 }
                 item {
-                    Text("Primary Muscles", style = MaterialTheme.typography.titleSmall)
-                    Text(ex.primaryMuscles.joinToString(", ") {
-                        it.name.lowercase().replaceFirstChar { c -> c.uppercase() }
-                    })
-                }
-                if (ex.secondaryMuscles.isNotEmpty()) {
-                    item {
-                        Text("Secondary Muscles", style = MaterialTheme.typography.titleSmall)
-                        Text(ex.secondaryMuscles.joinToString(", ") {
-                            it.name.lowercase().replaceFirstChar { c -> c.uppercase() }
-                        })
+                    Card(modifier = Modifier.fillMaxWidth()) {
+                        Column(modifier = Modifier.padding(12.dp)) {
+                            MuscleDiagram(
+                                primaryMuscles = ex.primaryMuscles,
+                                secondaryMuscles = ex.secondaryMuscles
+                            )
+                            if (ex.primaryMuscles.isNotEmpty()) {
+                                Spacer(Modifier.height(8.dp))
+                                Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                                    Text(
+                                        "Primary:",
+                                        style = MaterialTheme.typography.labelSmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                    Text(
+                                        ex.primaryMuscles.joinToString(", ") {
+                                            it.name.lowercase().replaceFirstChar { c -> c.uppercase() }
+                                        },
+                                        style = MaterialTheme.typography.labelSmall
+                                    )
+                                }
+                            }
+                            if (ex.secondaryMuscles.isNotEmpty()) {
+                                Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                                    Text(
+                                        "Secondary:",
+                                        style = MaterialTheme.typography.labelSmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                    Text(
+                                        ex.secondaryMuscles.joinToString(", ") {
+                                            it.name.lowercase().replaceFirstChar { c -> c.uppercase() }
+                                        },
+                                        style = MaterialTheme.typography.labelSmall
+                                    )
+                                }
+                            }
+                        }
                     }
                 }
                 if (ex.instructions.isNotBlank()) {
