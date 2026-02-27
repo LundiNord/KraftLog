@@ -263,7 +263,7 @@ fun ExerciseDetailScreen(
     val vm: ExercisesViewModel = viewModel(
         factory = ExercisesViewModel.factory(app.exerciseRepository, app.workoutRepository)
     )
-    val detailState by vm.getDetailState(exerciseId).collectAsState()
+    val detailState by remember(exerciseId) { vm.getDetailState(exerciseId) }.collectAsState()
     val exercise = detailState.exercise
 
     Scaffold(

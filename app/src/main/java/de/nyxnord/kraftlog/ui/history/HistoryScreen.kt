@@ -18,7 +18,10 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Button
 import androidx.compose.material3.Card
+import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.SwipeToDismissBox
 import androidx.compose.material3.SwipeToDismissBoxValue
 import androidx.compose.material3.TextButton
@@ -56,7 +59,7 @@ fun HistoryScreen(
     app: KraftLogApplication,
     onSessionClick: (Long) -> Unit
 ) {
-    val vm: HistoryViewModel = viewModel(factory = HistoryViewModel.factory(app.workoutRepository, app.exerciseRepository))
+    val vm: HistoryViewModel = viewModel(factory = HistoryViewModel.factory(app.workoutRepository, app.exerciseRepository, app.routineRepository))
     val sessions by vm.sessions.collectAsState()
 
     // Group by month-year
@@ -172,12 +175,47 @@ fun SessionDetailScreen(
     sessionId: Long,
     app: KraftLogApplication,
     onBack: () -> Unit,
-    onDeleted: () -> Unit = onBack
+    onDeleted: () -> Unit = onBack,
+    onRoutineCreated: (Long) -> Unit = {}
 ) {
-    val vm: HistoryViewModel = viewModel(factory = HistoryViewModel.factory(app.workoutRepository, app.exerciseRepository))
+    val vm: HistoryViewModel = viewModel(factory = HistoryViewModel.factory(app.workoutRepository, app.exerciseRepository, app.routineRepository))
     val sessionWithSets by vm.getSessionDetail(sessionId).collectAsState()
     val allExercises by vm.allExercises.collectAsState()
     var showDeleteDialog by remember { mutableStateOf(false) }
+    var showCreateRoutineDialog by remember { mutableStateOf(false) }
+    var routineNameInput by remember { mutableStateOf("") }
+
+    if (showCreateRoutineDialog) {
+        AlertDialog(
+            onDismissRequest = { showCreateRoutineDialog = false },
+            title = { Text("Save as Routine") },
+            text = {
+                OutlinedTextField(
+                    value = routineNameInput,
+                    onValueChange = { routineNameInput = it },
+                    label = { Text("Routine name") },
+                    modifier = Modifier.fillMaxWidth(),
+                    singleLine = true
+                )
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        sessionWithSets?.let { data ->
+                            vm.createRoutineFromSession(routineNameInput, data.sets) { id ->
+                                showCreateRoutineDialog = false
+                                onRoutineCreated(id)
+                            }
+                        }
+                    },
+                    enabled = routineNameInput.isNotBlank()
+                ) { Text("Create") }
+            },
+            dismissButton = {
+                TextButton(onClick = { showCreateRoutineDialog = false }) { Text("Cancel") }
+            }
+        )
+    }
 
     if (showDeleteDialog) {
         AlertDialog(
@@ -268,6 +306,16 @@ fun SessionDetailScreen(
                     "Total volume: ${"%.1f".format(totalVolume)} kg",
                     style = MaterialTheme.typography.titleSmall
                 )
+            }
+
+            item {
+                OutlinedButton(
+                    onClick = {
+                        routineNameInput = session.name
+                        showCreateRoutineDialog = true
+                    },
+                    modifier = Modifier.fillMaxWidth()
+                ) { Text("Save as Routine") }
             }
 
             if (workedPrimary.isNotEmpty()) {

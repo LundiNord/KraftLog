@@ -66,105 +66,132 @@ abstract class KraftLogDatabase : RoomDatabase() {
             INSTANCE?.let { database ->
                 CoroutineScope(Dispatchers.IO).launch {
                     seedExercises(database.exerciseDao())
+                    seedRoutines(database.exerciseDao(), database.routineDao())
+                }
+            }
+        }
+
+        override fun onOpen(db: SupportSQLiteDatabase) {
+            super.onOpen(db)
+            INSTANCE?.let { database ->
+                CoroutineScope(Dispatchers.IO).launch {
+                    seedExercises(database.exerciseDao())
+                    seedRoutines(database.exerciseDao(), database.routineDao())
                 }
             }
         }
 
         private suspend fun seedExercises(dao: ExerciseDao) {
             val exercises = listOf(
-                // Chest
-                Exercise(name = "Bench Press", category = ExerciseCategory.STRENGTH,
-                    primaryMuscles = listOf(MuscleGroup.CHEST),
-                    secondaryMuscles = listOf(MuscleGroup.TRICEPS, MuscleGroup.SHOULDERS),
-                    instructions = "Lie on a flat bench. Lower the bar to your chest, then press back up."),
-                Exercise(name = "Incline Bench Press", category = ExerciseCategory.STRENGTH,
+                // Workout 31.07.2025 (Chest, Triceps, Shoulders)
+                Exercise(name = "Brustpresse (01)", category = ExerciseCategory.STRENGTH,
                     primaryMuscles = listOf(MuscleGroup.CHEST),
                     secondaryMuscles = listOf(MuscleGroup.TRICEPS, MuscleGroup.SHOULDERS)),
-                Exercise(name = "Push-Up", category = ExerciseCategory.CALISTHENICS,
-                    primaryMuscles = listOf(MuscleGroup.CHEST),
-                    secondaryMuscles = listOf(MuscleGroup.TRICEPS, MuscleGroup.CORE)),
-                Exercise(name = "Dumbbell Fly", category = ExerciseCategory.STRENGTH,
-                    primaryMuscles = listOf(MuscleGroup.CHEST),
-                    secondaryMuscles = listOf(MuscleGroup.SHOULDERS)),
-                // Back
-                Exercise(name = "Deadlift", category = ExerciseCategory.STRENGTH,
-                    primaryMuscles = listOf(MuscleGroup.BACK),
-                    secondaryMuscles = listOf(MuscleGroup.GLUTES, MuscleGroup.HAMSTRINGS),
-                    instructions = "Stand with feet hip-width. Hinge at hips, grip bar, drive hips forward to stand."),
-                Exercise(name = "Pull-Up", category = ExerciseCategory.CALISTHENICS,
-                    primaryMuscles = listOf(MuscleGroup.BACK),
-                    secondaryMuscles = listOf(MuscleGroup.BICEPS)),
-                Exercise(name = "Barbell Row", category = ExerciseCategory.STRENGTH,
-                    primaryMuscles = listOf(MuscleGroup.BACK),
-                    secondaryMuscles = listOf(MuscleGroup.BICEPS)),
-                Exercise(name = "Lat Pulldown", category = ExerciseCategory.STRENGTH,
-                    primaryMuscles = listOf(MuscleGroup.BACK),
-                    secondaryMuscles = listOf(MuscleGroup.BICEPS)),
-                Exercise(name = "Seated Cable Row", category = ExerciseCategory.STRENGTH,
-                    primaryMuscles = listOf(MuscleGroup.BACK),
-                    secondaryMuscles = listOf(MuscleGroup.BICEPS)),
-                // Shoulders
-                Exercise(name = "Overhead Press", category = ExerciseCategory.STRENGTH,
-                    primaryMuscles = listOf(MuscleGroup.SHOULDERS),
-                    secondaryMuscles = listOf(MuscleGroup.TRICEPS),
-                    instructions = "Press barbell from shoulder height to overhead lockout."),
-                Exercise(name = "Lateral Raise", category = ExerciseCategory.STRENGTH,
+                Exercise(name = "Schulterpresse (06)", category = ExerciseCategory.STRENGTH,
                     primaryMuscles = listOf(MuscleGroup.SHOULDERS)),
-                Exercise(name = "Face Pull", category = ExerciseCategory.STRENGTH,
-                    primaryMuscles = listOf(MuscleGroup.SHOULDERS),
-                    secondaryMuscles = listOf(MuscleGroup.BACK)),
-                // Arms
-                Exercise(name = "Barbell Curl", category = ExerciseCategory.STRENGTH,
-                    primaryMuscles = listOf(MuscleGroup.BICEPS),
-                    secondaryMuscles = listOf(MuscleGroup.FOREARMS)),
-                Exercise(name = "Dumbbell Curl", category = ExerciseCategory.STRENGTH,
-                    primaryMuscles = listOf(MuscleGroup.BICEPS)),
-                Exercise(name = "Tricep Pushdown", category = ExerciseCategory.STRENGTH,
+                Exercise(name = "Trizepsmaschine (23)", category = ExerciseCategory.STRENGTH,
                     primaryMuscles = listOf(MuscleGroup.TRICEPS)),
-                Exercise(name = "Skull Crusher", category = ExerciseCategory.STRENGTH,
-                    primaryMuscles = listOf(MuscleGroup.TRICEPS)),
-                Exercise(name = "Dip", category = ExerciseCategory.CALISTHENICS,
+                Exercise(name = "Bankdrücken schräg (38)", category = ExerciseCategory.STRENGTH,
+                    primaryMuscles = listOf(MuscleGroup.CHEST),
+                    secondaryMuscles = listOf(MuscleGroup.TRICEPS, MuscleGroup.SHOULDERS)),
+                Exercise(name = "Plate Loaded Seated Dip", category = ExerciseCategory.STRENGTH,
                     primaryMuscles = listOf(MuscleGroup.TRICEPS),
                     secondaryMuscles = listOf(MuscleGroup.CHEST, MuscleGroup.SHOULDERS)),
-                // Legs
-                Exercise(name = "Squat", category = ExerciseCategory.STRENGTH,
-                    primaryMuscles = listOf(MuscleGroup.QUADRICEPS),
-                    secondaryMuscles = listOf(MuscleGroup.GLUTES, MuscleGroup.HAMSTRINGS),
-                    instructions = "Bar on upper back. Descend until thighs parallel. Drive up through heels."),
-                Exercise(name = "Romanian Deadlift", category = ExerciseCategory.STRENGTH,
-                    primaryMuscles = listOf(MuscleGroup.HAMSTRINGS),
-                    secondaryMuscles = listOf(MuscleGroup.GLUTES)),
-                Exercise(name = "Leg Press", category = ExerciseCategory.STRENGTH,
-                    primaryMuscles = listOf(MuscleGroup.QUADRICEPS),
-                    secondaryMuscles = listOf(MuscleGroup.GLUTES)),
-                Exercise(name = "Leg Curl", category = ExerciseCategory.STRENGTH,
-                    primaryMuscles = listOf(MuscleGroup.HAMSTRINGS)),
-                Exercise(name = "Leg Extension", category = ExerciseCategory.STRENGTH,
+                Exercise(name = "Bankdrücken (25)", category = ExerciseCategory.STRENGTH,
+                    primaryMuscles = listOf(MuscleGroup.CHEST),
+                    secondaryMuscles = listOf(MuscleGroup.TRICEPS, MuscleGroup.SHOULDERS)),
+                Exercise(name = "Trizepsstrecken beidarmig sitzend", category = ExerciseCategory.STRENGTH,
+                    primaryMuscles = listOf(MuscleGroup.TRICEPS)),
+                Exercise(name = "Seitheben (21)", category = ExerciseCategory.STRENGTH,
+                    primaryMuscles = listOf(MuscleGroup.SHOULDERS)),
+                Exercise(name = "Butterfly (02)", category = ExerciseCategory.STRENGTH,
+                    primaryMuscles = listOf(MuscleGroup.CHEST)),
+
+                // Workout 05.08.2025 (Legs, Core)
+                Exercise(name = "Beinstreckung (14)", category = ExerciseCategory.STRENGTH,
                     primaryMuscles = listOf(MuscleGroup.QUADRICEPS)),
-                Exercise(name = "Calf Raise", category = ExerciseCategory.STRENGTH,
-                    primaryMuscles = listOf(MuscleGroup.CALVES)),
-                Exercise(name = "Lunge", category = ExerciseCategory.STRENGTH,
+                Exercise(name = "Beinbeuger liegend", category = ExerciseCategory.STRENGTH,
+                    primaryMuscles = listOf(MuscleGroup.HAMSTRINGS)),
+                Exercise(name = "Adduktion (09)", category = ExerciseCategory.STRENGTH,
+                    primaryMuscles = listOf(MuscleGroup.QUADRICEPS)),
+                Exercise(name = "Abduktion (08)", category = ExerciseCategory.STRENGTH,
+                    primaryMuscles = listOf(MuscleGroup.GLUTES)),
+                Exercise(name = "Beinpresse (07)", category = ExerciseCategory.STRENGTH,
                     primaryMuscles = listOf(MuscleGroup.QUADRICEPS),
-                    secondaryMuscles = listOf(MuscleGroup.GLUTES)),
-                Exercise(name = "Hip Thrust", category = ExerciseCategory.STRENGTH,
-                    primaryMuscles = listOf(MuscleGroup.GLUTES),
-                    secondaryMuscles = listOf(MuscleGroup.HAMSTRINGS)),
-                // Core
-                Exercise(name = "Plank", category = ExerciseCategory.CALISTHENICS,
+                    secondaryMuscles = listOf(MuscleGroup.GLUTES, MuscleGroup.CALVES)),
+                Exercise(name = "Bauchmaschine (HS)", category = ExerciseCategory.STRENGTH,
                     primaryMuscles = listOf(MuscleGroup.CORE)),
-                Exercise(name = "Crunch", category = ExerciseCategory.CALISTHENICS,
+                Exercise(name = "Wadenheben stehend", category = ExerciseCategory.STRENGTH,
+                    primaryMuscles = listOf(MuscleGroup.CALVES)),
+                Exercise(name = "Rumpfrotation (120)", category = ExerciseCategory.STRENGTH,
                     primaryMuscles = listOf(MuscleGroup.CORE)),
-                Exercise(name = "Hanging Leg Raise", category = ExerciseCategory.CALISTHENICS,
-                    primaryMuscles = listOf(MuscleGroup.CORE)),
-                // Cardio
-                Exercise(name = "Running", category = ExerciseCategory.CARDIO,
-                    primaryMuscles = listOf(MuscleGroup.FULL_BODY)),
-                Exercise(name = "Cycling", category = ExerciseCategory.CARDIO,
-                    primaryMuscles = listOf(MuscleGroup.QUADRICEPS, MuscleGroup.CALVES)),
-                Exercise(name = "Jump Rope", category = ExerciseCategory.CARDIO,
-                    primaryMuscles = listOf(MuscleGroup.FULL_BODY)),
+
+                // Workout 02.08.2025 (Back, Biceps)
+                Exercise(name = "Upper Back (03A)", category = ExerciseCategory.STRENGTH,
+                    primaryMuscles = listOf(MuscleGroup.BACK)),
+                Exercise(name = "Vertical Traction (05A)", category = ExerciseCategory.STRENGTH,
+                    primaryMuscles = listOf(MuscleGroup.BACK),
+                    secondaryMuscles = listOf(MuscleGroup.BICEPS)),
+                Exercise(name = "Bizepsmaschine (22)", category = ExerciseCategory.STRENGTH,
+                    primaryMuscles = listOf(MuscleGroup.BICEPS)),
+                Exercise(name = "Reverse Fly", category = ExerciseCategory.STRENGTH,
+                    primaryMuscles = listOf(MuscleGroup.BACK),
+                    secondaryMuscles = listOf(MuscleGroup.SHOULDERS)),
+                Exercise(name = "Rückenstreckung 45°", category = ExerciseCategory.STRENGTH,
+                    primaryMuscles = listOf(MuscleGroup.BACK),
+                    secondaryMuscles = listOf(MuscleGroup.GLUTES, MuscleGroup.HAMSTRINGS)),
+                Exercise(name = "PL Latzug (50)", category = ExerciseCategory.STRENGTH,
+                    primaryMuscles = listOf(MuscleGroup.BACK),
+                    secondaryMuscles = listOf(MuscleGroup.BICEPS)),
+                Exercise(name = "Rudern sitzend", category = ExerciseCategory.STRENGTH,
+                    primaryMuscles = listOf(MuscleGroup.BACK),
+                    secondaryMuscles = listOf(MuscleGroup.BICEPS)),
+                Exercise(name = "Bizeps Curls stehend (95)", category = ExerciseCategory.STRENGTH,
+                    primaryMuscles = listOf(MuscleGroup.BICEPS))
             )
-            dao.insertExercises(exercises)
+            exercises.forEach { exercise ->
+                if (dao.getByName(exercise.name) == null) {
+                    dao.insertExercise(exercise)
+                }
+            }
+        }
+
+        private suspend fun seedRoutines(exerciseDao: ExerciseDao, routineDao: RoutineDao) {
+            suspend fun insertRoutine(name: String, exerciseNames: List<String>) {
+                if (routineDao.getByName(name) != null) return
+                val routineId = routineDao.insertRoutine(Routine(name = name))
+                val routineExercises = exerciseNames.mapIndexedNotNull { idx, exName ->
+                    exerciseDao.getByName(exName)?.let { ex ->
+                        RoutineExercise(routineId = routineId, exerciseId = ex.id, orderIndex = idx)
+                    }
+                }
+                routineDao.replaceRoutineExercises(routineId, routineExercises)
+            }
+
+            insertRoutine(
+                "Brust, Trizeps & Schultern",
+                listOf(
+                    "Brustpresse (01)", "Bankdrücken schräg (38)", "Bankdrücken (25)",
+                    "Butterfly (02)", "Schulterpresse (06)", "Seitheben (21)",
+                    "Trizepsmaschine (23)", "Plate Loaded Seated Dip", "Trizepsstrecken beidarmig sitzend"
+                )
+            )
+            insertRoutine(
+                "Beine & Core",
+                listOf(
+                    "Beinpresse (07)", "Beinstreckung (14)", "Beinbeuger liegend",
+                    "Adduktion (09)", "Abduktion (08)", "Wadenheben stehend",
+                    "Bauchmaschine (HS)", "Rumpfrotation (120)"
+                )
+            )
+            insertRoutine(
+                "Rücken & Bizeps",
+                listOf(
+                    "Upper Back (03A)", "PL Latzug (50)", "Vertical Traction (05A)",
+                    "Rudern sitzend", "Reverse Fly", "Rückenstreckung 45°",
+                    "Bizepsmaschine (22)", "Bizeps Curls stehend (95)"
+                )
+            )
         }
     }
 }

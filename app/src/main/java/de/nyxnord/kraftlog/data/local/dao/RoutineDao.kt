@@ -29,6 +29,9 @@ interface RoutineDao {
     @Query("SELECT * FROM routines ORDER BY lastUsedAt DESC, createdAt DESC")
     fun getAllRoutinesWithExerciseDetails(): Flow<List<RoutineWithExerciseDetails>>
 
+    @Query("SELECT * FROM routines WHERE LOWER(name) = LOWER(:name) LIMIT 1")
+    suspend fun getByName(name: String): Routine?
+
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertRoutine(routine: Routine): Long
 

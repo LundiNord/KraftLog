@@ -31,7 +31,7 @@ fun MuscleDiagram(
 ) {
     val primaryColor   = MaterialTheme.colorScheme.primary
     val secondaryColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.38f)
-    val bodyColor      = MaterialTheme.colorScheme.surfaceVariant
+    val bodyColor      = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.12f)
     val dividerColor   = MaterialTheme.colorScheme.outlineVariant
     val labelColor     = MaterialTheme.colorScheme.onSurfaceVariant
 

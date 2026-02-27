@@ -167,7 +167,8 @@ fun KraftLogNavHost(
                 sessionId = sessionId,
                 app = app,
                 onBack = { navController.popBackStack() },
-                onDeleted = { navController.popBackStack() }
+                onDeleted = { navController.popBackStack() },
+                onRoutineCreated = { id -> navController.navigate("routines/$id") }
             )
         }
 
