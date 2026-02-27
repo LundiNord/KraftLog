@@ -49,6 +49,7 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import de.nyxnord.kraftlog.KraftLogApplication
+import de.nyxnord.kraftlog.data.local.entity.WorkoutSet
 import de.nyxnord.kraftlog.ui.exercises.ExercisesViewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -90,7 +91,7 @@ fun ActiveWorkoutScreen(
                     }
                 },
                 actions = {
-                    IconButton(onClick = onFinish) {
+                    IconButton(onClick = { vm.discardWorkout() }) {
                         Icon(Icons.Default.Close, "Discard")
                     }
                 }
@@ -256,6 +257,19 @@ private fun ExerciseWorkoutCard(
                 Spacer(Modifier.weight(0.6f))
             }
 
+            if (exercise.lastSets.isNotEmpty()) {
+                Spacer(Modifier.height(4.dp))
+                Text(
+                    "Previous",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                exercise.lastSets.forEach { prevSet ->
+                    PreviousSetRow(prevSet)
+                }
+                HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp))
+            }
+
             exercise.sets.forEachIndexed { setIdx, set ->
                 SetInputRow(
                     set = set,
@@ -274,6 +288,41 @@ private fun ExerciseWorkoutCard(
                 Text("Add Set", modifier = Modifier.padding(start = 4.dp))
             }
         }
+    }
+}
+
+@Composable
+private fun PreviousSetRow(set: WorkoutSet) {
+    val weightText = if (set.isBodyweight) "BW"
+    else if (set.weightKg == set.weightKg.toLong().toFloat()) set.weightKg.toLong().toString()
+    else set.weightKg.toString()
+
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 2.dp),
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Text(
+            "${set.setNumber}",
+            modifier = Modifier.weight(0.5f),
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+        Text(
+            weightText,
+            modifier = Modifier.weight(1f),
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+        Text(
+            "${set.reps}",
+            modifier = Modifier.weight(1f),
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+        Spacer(Modifier.weight(0.6f))
     }
 }
 

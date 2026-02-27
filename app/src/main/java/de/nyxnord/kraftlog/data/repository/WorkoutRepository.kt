@@ -26,6 +26,13 @@ class WorkoutRepository(private val dao: WorkoutSessionDao) {
 
     suspend fun deleteSession(session: WorkoutSession) = dao.deleteSession(session)
 
+    suspend fun deleteSessionById(id: Long) = dao.deleteSessionById(id)
+
+    suspend fun deleteAllUnfinishedSessions() = dao.deleteAllUnfinishedSessions()
+
+    suspend fun getLastSessionSetsForExercise(exerciseId: Long, excludeSessionId: Long): List<WorkoutSet> =
+        dao.getLastSessionSetsForExercise(exerciseId, excludeSessionId)
+
     suspend fun insertSet(workoutSet: WorkoutSet): Long = dao.insertSet(workoutSet)
 
     suspend fun updateSet(workoutSet: WorkoutSet) = dao.updateSet(workoutSet)

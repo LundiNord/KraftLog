@@ -18,7 +18,7 @@ interface WorkoutSessionDao {
     @Query("SELECT * FROM workout_sessions ORDER BY startedAt DESC")
     fun getAllSessions(): Flow<List<WorkoutSession>>
 
-    @Query("SELECT * FROM workout_sessions WHERE finishedAt IS NULL LIMIT 1")
+    @Query("SELECT * FROM workout_sessions WHERE finishedAt IS NULL ORDER BY startedAt DESC LIMIT 1")
     fun getActiveSession(): Flow<WorkoutSession?>
 
     @Transaction
@@ -40,6 +40,12 @@ interface WorkoutSessionDao {
     @Delete
     suspend fun deleteSession(session: WorkoutSession)
 
+    @Query("DELETE FROM workout_sessions WHERE id = :id")
+    suspend fun deleteSessionById(id: Long)
+
+    @Query("DELETE FROM workout_sessions WHERE finishedAt IS NULL")
+    suspend fun deleteAllUnfinishedSessions()
+
     // WorkoutSet operations
 
     @Query("SELECT * FROM workout_sets WHERE sessionId = :sessionId ORDER BY exerciseName, setNumber")
@@ -47,6 +53,21 @@ interface WorkoutSessionDao {
 
     @Query("SELECT * FROM workout_sets WHERE exerciseId = :exerciseId ORDER BY loggedAt DESC")
     fun getSetsForExercise(exerciseId: Long): Flow<List<WorkoutSet>>
+
+    @Query("""
+        SELECT ws.* FROM workout_sets ws
+        WHERE ws.exerciseId = :exerciseId
+        AND ws.sessionId = (
+            SELECT s.id FROM workout_sessions s
+            INNER JOIN workout_sets ws2 ON s.id = ws2.sessionId
+            WHERE ws2.exerciseId = :exerciseId
+            AND s.id != :excludeSessionId
+            ORDER BY s.startedAt DESC
+            LIMIT 1
+        )
+        ORDER BY ws.setNumber ASC
+    """)
+    suspend fun getLastSessionSetsForExercise(exerciseId: Long, excludeSessionId: Long): List<WorkoutSet>
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertSet(workoutSet: WorkoutSet): Long

@@ -30,7 +30,8 @@ data class LiveExercise(
     val exerciseId: Long,
     val exerciseName: String,
     val sets: List<LiveSet> = emptyList(),
-    val restSeconds: Int = 60
+    val restSeconds: Int = 60,
+    val lastSets: List<de.nyxnord.kraftlog.data.local.entity.WorkoutSet> = emptyList()
 )
 
 data class ActiveWorkoutUiState(
@@ -64,31 +65,19 @@ class ActiveWorkoutViewModel(
 
     private suspend fun initSession() {
         val sessionName: String
-        val exercises: List<LiveExercise>
+        val rawExerciseDetails: List<de.nyxnord.kraftlog.data.local.relation.RoutineExerciseWithExercise>?
 
         if (routineId != -1L) {
             val detail = routineRepo.getRoutineWithExerciseDetails(routineId).first()
             sessionName = detail?.routine?.name ?: "Workout"
-            exercises = detail?.exerciseDetails
-                ?.sortedBy { it.routineExercise.orderIndex }
-                ?.map { item ->
-                    LiveExercise(
-                        exerciseId = item.exercise.id,
-                        exerciseName = item.exercise.name,
-                        restSeconds = item.routineExercise.restSeconds,
-                        sets = (1..item.routineExercise.targetSets).map { setNum ->
-                            LiveSet(
-                                setNumber = setNum,
-                                reps = item.routineExercise.targetReps.toString(),
-                                weight = item.routineExercise.targetWeightKg?.toString() ?: ""
-                            )
-                        }
-                    )
-                } ?: emptyList()
+            rawExerciseDetails = detail?.exerciseDetails?.sortedBy { it.routineExercise.orderIndex }
         } else {
             sessionName = "Ad-hoc Workout"
-            exercises = emptyList()
+            rawExerciseDetails = null
         }
+
+        // Remove any orphaned sessions left by previous app kills or navigation
+        workoutRepo.deleteAllUnfinishedSessions()
 
         val sessionId = workoutRepo.insertSession(
             WorkoutSession(
@@ -96,6 +85,23 @@ class ActiveWorkoutViewModel(
                 name = sessionName
             )
         )
+
+        val exercises = rawExerciseDetails?.map { item ->
+            val lastSets = workoutRepo.getLastSessionSetsForExercise(item.exercise.id, sessionId)
+            LiveExercise(
+                exerciseId = item.exercise.id,
+                exerciseName = item.exercise.name,
+                restSeconds = item.routineExercise.restSeconds,
+                sets = (1..item.routineExercise.targetSets).map { setNum ->
+                    LiveSet(
+                        setNumber = setNum,
+                        reps = item.routineExercise.targetReps.toString(),
+                        weight = item.routineExercise.targetWeightKg?.toString() ?: ""
+                    )
+                },
+                lastSets = lastSets
+            )
+        } ?: emptyList()
 
         _uiState.update {
             it.copy(
@@ -183,21 +189,32 @@ class ActiveWorkoutViewModel(
     }
 
     fun addExercise(exerciseId: Long, exerciseName: String) {
-        val state = _uiState.value
-        val updatedExercises = state.exercises.toMutableList()
-        updatedExercises.add(
-            LiveExercise(
-                exerciseId = exerciseId,
-                exerciseName = exerciseName,
-                sets = listOf(LiveSet(setNumber = 1))
+        viewModelScope.launch {
+            val lastSets = workoutRepo.getLastSessionSetsForExercise(exerciseId, _uiState.value.sessionId)
+            val state = _uiState.value
+            val updatedExercises = state.exercises.toMutableList()
+            updatedExercises.add(
+                LiveExercise(
+                    exerciseId = exerciseId,
+                    exerciseName = exerciseName,
+                    sets = listOf(LiveSet(setNumber = 1)),
+                    lastSets = lastSets
+                )
             )
-        )
-        _uiState.update { it.copy(exercises = updatedExercises) }
+            _uiState.update { it.copy(exercises = updatedExercises) }
+        }
     }
 
     fun finishWorkout() {
         viewModelScope.launch {
             workoutRepo.finishSession(_uiState.value.sessionId)
+            _uiState.update { it.copy(isFinished = true) }
+        }
+    }
+
+    fun discardWorkout() {
+        viewModelScope.launch {
+            workoutRepo.deleteSessionById(_uiState.value.sessionId)
             _uiState.update { it.copy(isFinished = true) }
         }
     }
