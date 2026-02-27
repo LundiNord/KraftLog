@@ -69,16 +69,6 @@ abstract class KraftLogDatabase : RoomDatabase() {
     }
 
     private class SeedCallback : Callback() {
-        override fun onCreate(db: SupportSQLiteDatabase) {
-            super.onCreate(db)
-            INSTANCE?.let { database ->
-                CoroutineScope(Dispatchers.IO).launch {
-                    seedExercises(database.exerciseDao())
-                    seedRoutines(database.exerciseDao(), database.routineDao())
-                }
-            }
-        }
-
         override fun onOpen(db: SupportSQLiteDatabase) {
             super.onOpen(db)
             INSTANCE?.let { database ->
