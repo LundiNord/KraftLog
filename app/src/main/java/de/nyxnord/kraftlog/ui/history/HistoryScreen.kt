@@ -74,6 +74,24 @@ fun HistoryScreen(
     val reminderEnabled by vm.reminderEnabled.collectAsState()
     val reminderIntervalDays by vm.reminderIntervalDays.collectAsState()
     val context = LocalContext.current
+    var sessionToDelete by remember { mutableStateOf<WorkoutSession?>(null) }
+
+    if (sessionToDelete != null) {
+        AlertDialog(
+            onDismissRequest = { sessionToDelete = null },
+            title = { Text("Delete Workout?") },
+            text = { Text("This will permanently delete \"${sessionToDelete!!.name}\" and all its logged sets.") },
+            confirmButton = {
+                TextButton(onClick = {
+                    vm.deleteSession(sessionToDelete!!)
+                    sessionToDelete = null
+                }) { Text("Delete", color = MaterialTheme.colorScheme.error) }
+            },
+            dismissButton = {
+                TextButton(onClick = { sessionToDelete = null }) { Text("Cancel") }
+            }
+        )
+    }
 
     // Group by month-year
     val grouped = sessions.groupBy { session ->
@@ -131,8 +149,8 @@ fun HistoryScreen(
                         val dismissState = rememberSwipeToDismissBoxState(
                             confirmValueChange = { value ->
                                 if (value == SwipeToDismissBoxValue.EndToStart) {
-                                    vm.deleteSession(session)
-                                    true
+                                    sessionToDelete = session
+                                    false // snap back; deletion happens via dialog
                                 } else false
                             }
                         )

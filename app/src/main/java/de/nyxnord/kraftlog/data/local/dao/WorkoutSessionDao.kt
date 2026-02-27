@@ -21,6 +21,12 @@ interface WorkoutSessionDao {
     @Query("SELECT * FROM workout_sessions WHERE finishedAt IS NULL ORDER BY startedAt DESC LIMIT 1")
     fun getActiveSession(): Flow<WorkoutSession?>
 
+    @Query("SELECT * FROM workout_sessions WHERE finishedAt IS NULL ORDER BY startedAt DESC LIMIT 1")
+    suspend fun getActiveSessionSync(): WorkoutSession?
+
+    @Query("SELECT * FROM workout_sets WHERE sessionId = :sessionId ORDER BY exerciseName, setNumber")
+    suspend fun getSetsForSessionList(sessionId: Long): List<WorkoutSet>
+
     @Transaction
     @Query("SELECT * FROM workout_sessions WHERE id = :id")
     fun getSessionWithSets(id: Long): Flow<WorkoutSessionWithSets?>

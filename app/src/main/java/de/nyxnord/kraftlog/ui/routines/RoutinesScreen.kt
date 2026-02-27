@@ -67,7 +67,6 @@ import de.nyxnord.kraftlog.data.local.entity.Exercise
 import de.nyxnord.kraftlog.data.local.entity.RoutineExercise
 import de.nyxnord.kraftlog.data.local.relation.RoutineExerciseWithExercise
 import de.nyxnord.kraftlog.data.local.relation.RoutineWithExerciseDetails
-import kotlinx.coroutines.launch
 
 // ── List ────────────────────────────────────────────────────────────────────
 
@@ -83,6 +82,24 @@ fun RoutinesScreen(
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     var showImportError by remember { mutableStateOf(false) }
+    var routineToDelete by remember { mutableStateOf<RoutineWithExerciseDetails?>(null) }
+
+    if (routineToDelete != null) {
+        AlertDialog(
+            onDismissRequest = { routineToDelete = null },
+            title = { Text("Delete Routine?") },
+            text = { Text("\"${routineToDelete!!.routine.name}\" will be permanently deleted.") },
+            confirmButton = {
+                TextButton(onClick = {
+                    vm.deleteRoutine(routineToDelete!!.routine)
+                    routineToDelete = null
+                }) { Text("Delete", color = MaterialTheme.colorScheme.error) }
+            },
+            dismissButton = {
+                TextButton(onClick = { routineToDelete = null }) { Text("Cancel") }
+            }
+        )
+    }
 
     val importLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.OpenDocument()
@@ -149,8 +166,8 @@ fun RoutinesScreen(
                     val dismissState = rememberSwipeToDismissBoxState(
                         confirmValueChange = { value ->
                             if (value == SwipeToDismissBoxValue.EndToStart) {
-                                vm.deleteRoutine(routineWithDetails.routine)
-                                true
+                                routineToDelete = routineWithDetails
+                                false // snap back; deletion happens via dialog
                             } else false
                         }
                     )

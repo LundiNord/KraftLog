@@ -65,6 +65,14 @@ class ActiveWorkoutViewModel(
     }
 
     private suspend fun initSession() {
+        // Restore an existing unfinished session if one exists
+        val existingSession = workoutRepo.getActiveSessionSync()
+        if (existingSession != null) {
+            restoreSession(existingSession)
+            return
+        }
+
+        // No existing session — start a new one
         val sessionName: String
         val rawExerciseDetails: List<de.nyxnord.kraftlog.data.local.relation.RoutineExerciseWithExercise>?
 
@@ -76,9 +84,6 @@ class ActiveWorkoutViewModel(
             sessionName = "Ad-hoc Workout"
             rawExerciseDetails = null
         }
-
-        // Remove any orphaned sessions left by previous app kills or navigation
-        workoutRepo.deleteAllUnfinishedSessions()
 
         val sessionId = workoutRepo.insertSession(
             WorkoutSession(
@@ -111,6 +116,46 @@ class ActiveWorkoutViewModel(
             it.copy(
                 sessionId = sessionId,
                 sessionName = sessionName,
+                exercises = exercises,
+                isLoading = false
+            )
+        }
+    }
+
+    private suspend fun restoreSession(session: WorkoutSession) {
+        val sets = workoutRepo.getSetsForSessionList(session.id)
+        val exerciseMap = LinkedHashMap<Long, MutableList<WorkoutSet>>()
+        for (set in sets) {
+            exerciseMap.getOrPut(set.exerciseId) { mutableListOf() }.add(set)
+        }
+
+        val exercises = exerciseMap.entries.map { (exerciseId, exerciseSets) ->
+            val lastSets = workoutRepo.getLastSessionSetsForExercise(exerciseId, session.id)
+            LiveExercise(
+                exerciseId = exerciseId,
+                exerciseName = exerciseSets.first().exerciseName,
+                sets = exerciseSets.map { set ->
+                    val weightStr = if (set.isBodyweight) ""
+                    else if (set.weightKg == set.weightKg.toLong().toFloat())
+                        set.weightKg.toLong().toString()
+                    else set.weightKg.toString()
+                    LiveSet(
+                        id = set.id,
+                        setNumber = set.setNumber,
+                        reps = set.reps.toString(),
+                        weight = weightStr,
+                        isBodyweight = set.isBodyweight,
+                        isLogged = true
+                    )
+                },
+                lastSets = lastSets
+            )
+        }
+
+        _uiState.update {
+            it.copy(
+                sessionId = session.id,
+                sessionName = session.name,
                 exercises = exercises,
                 isLoading = false
             )
