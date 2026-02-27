@@ -27,12 +27,14 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.ListItem
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -68,6 +70,7 @@ fun ActiveWorkoutScreen(
     )
     val state by vm.uiState.collectAsState()
     var showExercisePicker by remember { mutableStateOf(false) }
+    val restSheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
 
     LaunchedEffect(state.isFinished) {
         if (state.isFinished) onFinish()
@@ -150,6 +153,30 @@ fun ActiveWorkoutScreen(
             },
             onDismiss = { showExercisePicker = false }
         )
+    }
+
+    if (state.restTimerSeconds != null) {
+        ModalBottomSheet(
+            onDismissRequest = { vm.dismissRestTimer() },
+            sheetState = restSheetState
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(bottom = 48.dp, top = 8.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(16.dp)
+            ) {
+                Text("Rest", style = MaterialTheme.typography.titleMedium)
+                Text(
+                    formatElapsed(state.restTimerSeconds!!.toLong()),
+                    style = MaterialTheme.typography.displayLarge
+                )
+                OutlinedButton(onClick = { vm.dismissRestTimer() }) {
+                    Text("Skip")
+                }
+            }
+        }
     }
 }
 

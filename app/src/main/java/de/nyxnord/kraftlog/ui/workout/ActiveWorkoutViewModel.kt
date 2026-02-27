@@ -8,6 +8,7 @@ import de.nyxnord.kraftlog.data.local.entity.WorkoutSet
 import de.nyxnord.kraftlog.data.repository.ExerciseRepository
 import de.nyxnord.kraftlog.data.repository.RoutineRepository
 import de.nyxnord.kraftlog.data.repository.WorkoutRepository
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -28,7 +29,8 @@ data class LiveSet(
 data class LiveExercise(
     val exerciseId: Long,
     val exerciseName: String,
-    val sets: List<LiveSet> = emptyList()
+    val sets: List<LiveSet> = emptyList(),
+    val restSeconds: Int = 60
 )
 
 data class ActiveWorkoutUiState(
@@ -37,7 +39,8 @@ data class ActiveWorkoutUiState(
     val elapsedSeconds: Long = 0,
     val exercises: List<LiveExercise> = emptyList(),
     val isFinished: Boolean = false,
-    val isLoading: Boolean = true
+    val isLoading: Boolean = true,
+    val restTimerSeconds: Int? = null
 )
 
 class ActiveWorkoutViewModel(
@@ -49,6 +52,8 @@ class ActiveWorkoutViewModel(
 
     private val _uiState = MutableStateFlow(ActiveWorkoutUiState())
     val uiState: StateFlow<ActiveWorkoutUiState> = _uiState.asStateFlow()
+
+    private var restTimerJob: Job? = null
 
     init {
         viewModelScope.launch {
@@ -70,9 +75,11 @@ class ActiveWorkoutViewModel(
                     LiveExercise(
                         exerciseId = item.exercise.id,
                         exerciseName = item.exercise.name,
+                        restSeconds = item.routineExercise.restSeconds,
                         sets = (1..item.routineExercise.targetSets).map { setNum ->
                             LiveSet(
                                 setNumber = setNum,
+                                reps = item.routineExercise.targetReps.toString(),
                                 weight = item.routineExercise.targetWeightKg?.toString() ?: ""
                             )
                         }
@@ -133,6 +140,21 @@ class ActiveWorkoutViewModel(
         updatedSets[setIndex] = set.copy(isLogged = true)
         updatedExercises[exerciseIndex] = ex.copy(sets = updatedSets)
         _uiState.update { it.copy(exercises = updatedExercises) }
+
+        val restSecs = ex.restSeconds
+        restTimerJob?.cancel()
+        restTimerJob = viewModelScope.launch {
+            for (remaining in restSecs downTo 0) {
+                _uiState.update { it.copy(restTimerSeconds = remaining) }
+                if (remaining > 0) delay(1_000)
+            }
+            _uiState.update { it.copy(restTimerSeconds = null) }
+        }
+    }
+
+    fun dismissRestTimer() {
+        restTimerJob?.cancel()
+        _uiState.update { it.copy(restTimerSeconds = null) }
     }
 
     fun updateSetField(exerciseIndex: Int, setIndex: Int, reps: String? = null, weight: String? = null) {
