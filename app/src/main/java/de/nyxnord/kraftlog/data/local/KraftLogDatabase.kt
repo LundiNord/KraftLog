@@ -23,7 +23,7 @@ import kotlinx.coroutines.launch
 
 @Database(
     entities = [Exercise::class, Routine::class, RoutineExercise::class, WorkoutSession::class, WorkoutSet::class],
-    version = 2,
+    version = 3,
     exportSchema = false
 )
 @TypeConverters(Converters::class)
@@ -45,6 +45,14 @@ abstract class KraftLogDatabase : RoomDatabase() {
             }
         }
 
+        private val MIGRATION_2_3 = object : Migration(2, 3) {
+            override fun migrate(database: SupportSQLiteDatabase) {
+                database.execSQL(
+                    "ALTER TABLE routine_exercises ADD COLUMN targetRepsPerSet TEXT NOT NULL DEFAULT ''"
+                )
+            }
+        }
+
         fun getInstance(context: Context): KraftLogDatabase {
             return INSTANCE ?: synchronized(this) {
                 Room.databaseBuilder(
@@ -52,7 +60,7 @@ abstract class KraftLogDatabase : RoomDatabase() {
                     KraftLogDatabase::class.java,
                     "kraftlog.db"
                 )
-                    .addMigrations(MIGRATION_1_2)
+                    .addMigrations(MIGRATION_1_2, MIGRATION_2_3)
                     .addCallback(SeedCallback())
                     .build()
                     .also { INSTANCE = it }

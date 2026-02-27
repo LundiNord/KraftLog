@@ -318,28 +318,32 @@ fun RoutineDetailScreen(
 @Composable
 private fun ExerciseTargetCard(item: RoutineExerciseWithExercise) {
     val re = item.routineExercise
+    val weights = re.targetWeightsPerSet.split(",").filter { it.isNotBlank() }
+    val repsPerSet = re.targetRepsPerSet.split(",").filter { it.isNotBlank() }
     Card(modifier = Modifier.fillMaxWidth()) {
         Column(modifier = Modifier.padding(16.dp)) {
             Text(item.exercise.name, style = MaterialTheme.typography.titleMedium)
             Spacer(Modifier.height(4.dp))
             Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
                 Text("${re.targetSets} sets", style = MaterialTheme.typography.bodySmall)
-                Text("${re.targetReps} reps", style = MaterialTheme.typography.bodySmall)
+                if (repsPerSet.isEmpty()) Text("${re.targetReps} reps", style = MaterialTheme.typography.bodySmall)
                 Text("${re.restSeconds}s rest", style = MaterialTheme.typography.bodySmall)
             }
-            val weights = re.targetWeightsPerSet.split(",").filter { it.isNotBlank() }
-            if (weights.isNotEmpty()) {
+            if (weights.isNotEmpty() || repsPerSet.isNotEmpty()) {
                 Spacer(Modifier.height(4.dp))
                 Text(
-                    weights.mapIndexed { i, w -> "S${i + 1}: ${w} kg" }.joinToString("  ·  "),
+                    (0 until re.targetSets).joinToString("  ·  ") { i ->
+                        val w = weights.getOrNull(i)
+                        val r = repsPerSet.getOrElse(i) { re.targetReps.toString() }
+                        buildString {
+                            append("S${i + 1}:")
+                            if (!w.isNullOrBlank()) append(" ${w}kg")
+                            append(" ×${r}")
+                        }
+                    },
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
-            } else {
-                re.targetWeightKg?.let {
-                    Spacer(Modifier.height(4.dp))
-                    Text("$it kg", style = MaterialTheme.typography.bodySmall)
-                }
             }
         }
     }
@@ -351,8 +355,8 @@ data class EditableRoutineExercise(
     val exerciseId: Long,
     val exerciseName: String,
     var sets: String = "3",
-    var reps: String = "10",
     var setWeights: List<String> = List(3) { "" },
+    var setReps: List<String> = List(3) { "" },
     var restSeconds: String = "90"
 )
 
@@ -382,17 +386,15 @@ fun RoutineEditScreen(
             detail.exerciseDetails.sortedBy { it.routineExercise.orderIndex }.forEach { item ->
                 val re = item.routineExercise
                 val setCount = re.targetSets
-                val parsedWeights = re.targetWeightsPerSet
-                    .split(",")
-                    .filter { it.isNotBlank() }
-                val setWeights = List(setCount) { i -> parsedWeights.getOrElse(i) { "" } }
+                val parsedWeights = re.targetWeightsPerSet.split(",").filter { it.isNotBlank() }
+                val parsedReps = re.targetRepsPerSet.split(",").filter { it.isNotBlank() }
                 exerciseItems.add(
                     EditableRoutineExercise(
                         exerciseId = item.exercise.id,
                         exerciseName = item.exercise.name,
                         sets = setCount.toString(),
-                        reps = re.targetReps.toString(),
-                        setWeights = setWeights,
+                        setWeights = List(setCount) { i -> parsedWeights.getOrElse(i) { "" } },
+                        setReps = List(setCount) { i -> parsedReps.getOrElse(i) { re.targetReps.toString() } },
                         restSeconds = re.restSeconds.toString()
                     )
                 )
@@ -419,11 +421,10 @@ fun RoutineEditScreen(
                                         exerciseId = item.exerciseId,
                                         orderIndex = idx,
                                         targetSets = item.sets.toIntOrNull() ?: 3,
-                                        targetReps = item.reps.toIntOrNull() ?: 10,
-                                        targetWeightKg = item.setWeights
-                                            .firstOrNull { it.isNotBlank() }
-                                            ?.toFloatOrNull(),
+                                        targetReps = item.setReps.firstOrNull { it.isNotBlank() }?.toIntOrNull() ?: 10,
+                                        targetWeightKg = item.setWeights.firstOrNull { it.isNotBlank() }?.toFloatOrNull(),
                                         targetWeightsPerSet = item.setWeights.joinToString(","),
+                                        targetRepsPerSet = item.setReps.joinToString(","),
                                         restSeconds = item.restSeconds.toIntOrNull() ?: 90
                                     )
                                 }
@@ -499,7 +500,7 @@ fun RoutineEditScreen(
         ExercisePickerDialog(
             app = app,
             onPicked = { exercise ->
-                exerciseItems.add(EditableRoutineExercise(exercise.id, exercise.name))
+                exerciseItems.add(EditableRoutineExercise(exerciseId = exercise.id, exerciseName = exercise.name))
                 showExercisePicker = false
             },
             onDismiss = { showExercisePicker = false }
@@ -535,17 +536,10 @@ private fun EditableExerciseCard(
                     onValueChange = { newSets ->
                         val count = newSets.toIntOrNull()?.coerceIn(1, 20) ?: item.setWeights.size
                         val newWeights = List(count) { i -> item.setWeights.getOrElse(i) { "" } }
-                        onUpdate(item.copy(sets = newSets, setWeights = newWeights))
+                        val newReps = List(count) { i -> item.setReps.getOrElse(i) { "" } }
+                        onUpdate(item.copy(sets = newSets, setWeights = newWeights, setReps = newReps))
                     },
                     label = { Text("Sets") },
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                    modifier = Modifier.weight(1f),
-                    singleLine = true
-                )
-                OutlinedTextField(
-                    value = item.reps,
-                    onValueChange = { onUpdate(item.copy(reps = it)) },
-                    label = { Text("Reps") },
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                     modifier = Modifier.weight(1f),
                     singleLine = true
@@ -560,6 +554,16 @@ private fun EditableExerciseCard(
                 )
             }
             Spacer(Modifier.height(8.dp))
+            Row(
+                modifier = Modifier.fillMaxWidth().padding(bottom = 2.dp),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                Spacer(Modifier.width(52.dp))
+                Text("kg", style = MaterialTheme.typography.labelSmall,
+                    modifier = Modifier.weight(1f))
+                Text("Reps", style = MaterialTheme.typography.labelSmall,
+                    modifier = Modifier.weight(1f))
+            }
             item.setWeights.forEachIndexed { setIdx, w ->
                 Row(
                     modifier = Modifier
@@ -571,7 +575,7 @@ private fun EditableExerciseCard(
                     Text(
                         "Set ${setIdx + 1}",
                         style = MaterialTheme.typography.bodySmall,
-                        modifier = Modifier.width(44.dp)
+                        modifier = Modifier.width(52.dp)
                     )
                     OutlinedTextField(
                         value = w,
@@ -579,8 +583,17 @@ private fun EditableExerciseCard(
                             val newWeights = item.setWeights.toMutableList().also { it[setIdx] = newW }
                             onUpdate(item.copy(setWeights = newWeights))
                         },
-                        label = { Text("kg") },
                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                        modifier = Modifier.weight(1f),
+                        singleLine = true
+                    )
+                    OutlinedTextField(
+                        value = item.setReps.getOrElse(setIdx) { "" },
+                        onValueChange = { newR ->
+                            val newReps = item.setReps.toMutableList().also { it[setIdx] = newR }
+                            onUpdate(item.copy(setReps = newReps))
+                        },
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                         modifier = Modifier.weight(1f),
                         singleLine = true
                     )

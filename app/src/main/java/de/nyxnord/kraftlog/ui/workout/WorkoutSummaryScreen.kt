@@ -168,18 +168,34 @@ fun WorkoutSummaryScreen(
                         session?.finishedAt?.let { finished ->
                             SummaryStatCard(
                                 label = "Duration",
-                                value = formatSummaryDuration(finished - (session.startedAt)),
+                                value = formatSummaryDuration(finished - session.startedAt),
                                 modifier = Modifier.weight(1f)
                             )
                         }
                         SummaryStatCard(
-                            label = "Total Volume",
-                            value = "${"%.1f".format(totalVolume)} kg",
+                            label = "Exercises",
+                            value = "${setsByExercise.size}",
                             modifier = Modifier.weight(1f)
                         )
                         SummaryStatCard(
                             label = "Sets",
                             value = "${sets.size}",
+                            modifier = Modifier.weight(1f)
+                        )
+                    }
+                    Spacer(Modifier.height(12.dp))
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        SummaryStatCard(
+                            label = "Total Reps",
+                            value = "${sets.sumOf { it.reps }}",
+                            modifier = Modifier.weight(1f)
+                        )
+                        SummaryStatCard(
+                            label = "Total Volume",
+                            value = "${"%.1f".format(totalVolume)} kg",
                             modifier = Modifier.weight(1f)
                         )
                     }

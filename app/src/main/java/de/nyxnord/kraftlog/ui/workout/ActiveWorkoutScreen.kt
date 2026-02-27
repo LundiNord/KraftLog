@@ -118,6 +118,7 @@ fun ActiveWorkoutScreen(
                         vm.updateSetField(exIdx, setIdx, weight = value)
                     },
                     onLogSet = { setIdx -> vm.logSet(exIdx, setIdx) },
+                    onUnlogSet = { setIdx -> vm.unlogSet(exIdx, setIdx) },
                     onAddSet = { vm.addSet(exIdx) }
                 )
             }
@@ -243,6 +244,7 @@ private fun ExerciseWorkoutCard(
     onSetRepsChange: (Int, String) -> Unit,
     onSetWeightChange: (Int, String) -> Unit,
     onLogSet: (Int) -> Unit,
+    onUnlogSet: (Int) -> Unit,
     onAddSet: () -> Unit
 ) {
     Card(modifier = Modifier.fillMaxWidth()) {
@@ -278,7 +280,8 @@ private fun ExerciseWorkoutCard(
                     set = set,
                     onRepsChange = { onSetRepsChange(setIdx, it) },
                     onWeightChange = { onSetWeightChange(setIdx, it) },
-                    onLog = { onLogSet(setIdx) }
+                    onLog = { onLogSet(setIdx) },
+                    onUnlog = { onUnlogSet(setIdx) }
                 )
             }
 
@@ -334,7 +337,8 @@ private fun SetInputRow(
     set: LiveSet,
     onRepsChange: (String) -> Unit,
     onWeightChange: (String) -> Unit,
-    onLog: () -> Unit
+    onLog: () -> Unit,
+    onUnlog: () -> Unit
 ) {
     Row(
         modifier = Modifier
@@ -365,13 +369,12 @@ private fun SetInputRow(
             enabled = !set.isLogged
         )
         IconButton(
-            onClick = onLog,
-            enabled = !set.isLogged,
+            onClick = if (set.isLogged) onUnlog else onLog,
             modifier = Modifier.weight(0.6f)
         ) {
             Icon(
                 Icons.Default.Check,
-                contentDescription = "Log set",
+                contentDescription = if (set.isLogged) "Edit set" else "Log set",
                 tint = if (set.isLogged) MaterialTheme.colorScheme.primary
                 else MaterialTheme.colorScheme.onSurfaceVariant
             )

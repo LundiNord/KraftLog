@@ -89,15 +89,18 @@ class ActiveWorkoutViewModel(
 
         val exercises = rawExerciseDetails?.map { item ->
             val lastSets = workoutRepo.getLastSessionSetsForExercise(item.exercise.id, sessionId)
+            val re = item.routineExercise
+            val perSetWeights = re.targetWeightsPerSet.split(",").filter { it.isNotBlank() }
+            val perSetReps = re.targetRepsPerSet.split(",").filter { it.isNotBlank() }
             LiveExercise(
                 exerciseId = item.exercise.id,
                 exerciseName = item.exercise.name,
-                restSeconds = item.routineExercise.restSeconds,
-                sets = (1..item.routineExercise.targetSets).map { setNum ->
+                restSeconds = re.restSeconds,
+                sets = (1..re.targetSets).map { setNum ->
                     LiveSet(
                         setNumber = setNum,
-                        reps = item.routineExercise.targetReps.toString(),
-                        weight = item.routineExercise.targetWeightKg?.toString() ?: ""
+                        reps = perSetReps.getOrElse(setNum - 1) { re.targetReps.toString() },
+                        weight = perSetWeights.getOrElse(setNum - 1) { re.targetWeightKg?.toString() ?: "" }
                     )
                 },
                 lastSets = lastSets
@@ -128,9 +131,18 @@ class ActiveWorkoutViewModel(
         val reps = set.reps.toIntOrNull() ?: 0
         val weight = set.weight.toFloatOrNull() ?: 0f
 
+        // Immediately mark as logged in the UI
+        val updatedExercises = state.exercises.toMutableList()
+        val updatedSets = ex.sets.toMutableList()
+        updatedSets[setIndex] = set.copy(isLogged = true)
+        updatedExercises[exerciseIndex] = ex.copy(sets = updatedSets)
+        _uiState.update { it.copy(exercises = updatedExercises) }
+
+        // Persist and store the returned row ID so edits can update the record
         viewModelScope.launch {
-            workoutRepo.insertSet(
+            val insertedId = workoutRepo.insertSet(
                 WorkoutSet(
+                    id = set.id,
                     sessionId = state.sessionId,
                     exerciseId = ex.exerciseId,
                     exerciseName = ex.exerciseName,
@@ -140,13 +152,15 @@ class ActiveWorkoutViewModel(
                     isBodyweight = set.isBodyweight
                 )
             )
+            _uiState.update { s ->
+                val exList = s.exercises.toMutableList()
+                val exItem = exList[exerciseIndex]
+                val setList = exItem.sets.toMutableList()
+                setList[setIndex] = setList[setIndex].copy(id = insertedId)
+                exList[exerciseIndex] = exItem.copy(sets = setList)
+                s.copy(exercises = exList)
+            }
         }
-
-        val updatedExercises = state.exercises.toMutableList()
-        val updatedSets = ex.sets.toMutableList()
-        updatedSets[setIndex] = set.copy(isLogged = true)
-        updatedExercises[exerciseIndex] = ex.copy(sets = updatedSets)
-        _uiState.update { it.copy(exercises = updatedExercises) }
 
         val restSecs = ex.restSeconds
         restTimerJob?.cancel()
@@ -156,6 +170,17 @@ class ActiveWorkoutViewModel(
                 if (remaining > 0) delay(1_000)
             }
             _uiState.update { it.copy(restTimerSeconds = null) }
+        }
+    }
+
+    fun unlogSet(exerciseIndex: Int, setIndex: Int) {
+        _uiState.update { state ->
+            val exList = state.exercises.toMutableList()
+            val ex = exList[exerciseIndex]
+            val setList = ex.sets.toMutableList()
+            setList[setIndex] = setList[setIndex].copy(isLogged = false)
+            exList[exerciseIndex] = ex.copy(sets = setList)
+            state.copy(exercises = exList)
         }
     }
 
