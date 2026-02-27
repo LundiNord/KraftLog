@@ -20,6 +20,8 @@ class WorkoutRepository(private val dao: WorkoutSessionDao) {
 
     suspend fun getLastFinishedSession(): WorkoutSession? = dao.getLastFinishedSession()
 
+    suspend fun getFinishedSessionsList(): List<WorkoutSession> = dao.getFinishedSessionsList()
+
     fun getSetsForExercise(exerciseId: Long): Flow<List<WorkoutSet>> = dao.getSetsForExercise(exerciseId)
 
     suspend fun insertSession(session: WorkoutSession): Long = dao.insertSession(session)

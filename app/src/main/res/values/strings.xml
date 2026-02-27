@@ -1,3 +1,4 @@
 <resources>
     <string name="app_name">KraftLog</string>
+    <string name="widget_description">Shows workout stats and a quick-start button</string>
 </resources>

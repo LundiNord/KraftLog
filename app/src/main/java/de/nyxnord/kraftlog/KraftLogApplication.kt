@@ -1,12 +1,17 @@
 package de.nyxnord.kraftlog
 
 import android.app.Application
+import androidx.glance.appwidget.updateAll
 import de.nyxnord.kraftlog.data.local.KraftLogDatabase
 import de.nyxnord.kraftlog.data.preferences.ReminderPreferences
 import de.nyxnord.kraftlog.data.repository.ExerciseRepository
 import de.nyxnord.kraftlog.data.repository.RoutineRepository
 import de.nyxnord.kraftlog.data.repository.WorkoutRepository
 import de.nyxnord.kraftlog.notification.ReminderScheduler
+import de.nyxnord.kraftlog.widget.KraftLogWidget
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 
 class KraftLogApplication : Application() {
 
@@ -21,6 +26,12 @@ class KraftLogApplication : Application() {
         super.onCreate()
         if (reminderPreferences.enabled) {
             ReminderScheduler.schedule(this)
+        }
+    }
+
+    fun updateWidget() {
+        CoroutineScope(Dispatchers.IO).launch {
+            KraftLogWidget().updateAll(this@KraftLogApplication)
         }
     }
 }

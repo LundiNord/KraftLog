@@ -31,6 +31,9 @@ interface WorkoutSessionDao {
     @Query("SELECT * FROM workout_sessions WHERE finishedAt IS NOT NULL ORDER BY finishedAt DESC LIMIT 1")
     suspend fun getLastFinishedSession(): WorkoutSession?
 
+    @Query("SELECT * FROM workout_sessions WHERE finishedAt IS NOT NULL ORDER BY finishedAt DESC")
+    suspend fun getFinishedSessionsList(): List<WorkoutSession>
+
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertSession(session: WorkoutSession): Long
 

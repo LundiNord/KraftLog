@@ -58,6 +58,8 @@ dependencies {
     ksp(libs.androidx.room.compiler)
     implementation(libs.konfetti.compose)
     implementation(libs.androidx.work.runtime.ktx)
+    implementation(libs.androidx.glance.appwidget)
+    implementation(libs.androidx.glance.material3)
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)
