@@ -38,9 +38,12 @@ import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.compose.viewModel
 import de.nyxnord.kraftlog.KraftLogApplication
+import de.nyxnord.kraftlog.data.local.entity.Exercise
 import de.nyxnord.kraftlog.data.local.entity.WorkoutSet
 import de.nyxnord.kraftlog.data.local.relation.WorkoutSessionWithSets
+import de.nyxnord.kraftlog.data.repository.ExerciseRepository
 import de.nyxnord.kraftlog.data.repository.WorkoutRepository
+import de.nyxnord.kraftlog.ui.exercises.MuscleDiagram
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.stateIn
@@ -55,6 +58,7 @@ import java.util.concurrent.TimeUnit
 
 class WorkoutSummaryViewModel(
     workoutRepo: WorkoutRepository,
+    exerciseRepo: ExerciseRepository,
     sessionId: Long
 ) : ViewModel() {
 
@@ -62,12 +66,16 @@ class WorkoutSummaryViewModel(
         workoutRepo.getSessionWithSets(sessionId)
             .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
 
+    val allExercises: StateFlow<List<Exercise>> =
+        exerciseRepo.getAllExercises()
+            .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
+
     companion object {
-        fun factory(workoutRepo: WorkoutRepository, sessionId: Long) =
+        fun factory(workoutRepo: WorkoutRepository, exerciseRepo: ExerciseRepository, sessionId: Long) =
             object : ViewModelProvider.Factory {
                 @Suppress("UNCHECKED_CAST")
                 override fun <T : ViewModel> create(modelClass: Class<T>): T =
-                    WorkoutSummaryViewModel(workoutRepo, sessionId) as T
+                    WorkoutSummaryViewModel(workoutRepo, exerciseRepo, sessionId) as T
             }
     }
 }
@@ -81,9 +89,10 @@ fun WorkoutSummaryScreen(
 ) {
     val vm: WorkoutSummaryViewModel = viewModel(
         key = "summary_$sessionId",
-        factory = WorkoutSummaryViewModel.factory(app.workoutRepository, sessionId)
+        factory = WorkoutSummaryViewModel.factory(app.workoutRepository, app.exerciseRepository, sessionId)
     )
     val data by vm.sessionWithSets.collectAsState()
+    val allExercises by vm.allExercises.collectAsState()
 
     var parties by remember { mutableStateOf<List<Party>>(emptyList()) }
     LaunchedEffect(Unit) {
@@ -110,6 +119,11 @@ fun WorkoutSummaryScreen(
             val sets = data?.sets ?: emptyList()
             val setsByExercise = sets.groupBy { it.exerciseName }
             val totalVolume = sets.sumOf { (it.weightKg * it.reps).toDouble() }
+
+            val exerciseMap = allExercises.associateBy { it.id }
+            val workedExercises = sets.map { it.exerciseId }.distinct().mapNotNull { exerciseMap[it] }
+            val workedPrimary = workedExercises.flatMap { it.primaryMuscles }.distinct()
+            val workedSecondary = (workedExercises.flatMap { it.secondaryMuscles }.distinct() - workedPrimary.toSet()).toList()
 
             LazyColumn(
                 modifier = Modifier
@@ -168,6 +182,21 @@ fun WorkoutSummaryScreen(
                             value = "${sets.size}",
                             modifier = Modifier.weight(1f)
                         )
+                    }
+                }
+
+                if (workedPrimary.isNotEmpty()) {
+                    item {
+                        Card(modifier = Modifier.fillMaxWidth()) {
+                            Column(modifier = Modifier.padding(12.dp)) {
+                                Text("Muscles Worked", style = MaterialTheme.typography.titleSmall)
+                                Spacer(Modifier.height(8.dp))
+                                MuscleDiagram(
+                                    primaryMuscles = workedPrimary,
+                                    secondaryMuscles = workedSecondary
+                                )
+                            }
+                        }
                     }
                 }
 

@@ -44,6 +44,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import de.nyxnord.kraftlog.KraftLogApplication
 import de.nyxnord.kraftlog.data.local.entity.WorkoutSession
 import de.nyxnord.kraftlog.data.local.entity.WorkoutSet
+import de.nyxnord.kraftlog.ui.exercises.MuscleDiagram
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -55,7 +56,7 @@ fun HistoryScreen(
     app: KraftLogApplication,
     onSessionClick: (Long) -> Unit
 ) {
-    val vm: HistoryViewModel = viewModel(factory = HistoryViewModel.factory(app.workoutRepository))
+    val vm: HistoryViewModel = viewModel(factory = HistoryViewModel.factory(app.workoutRepository, app.exerciseRepository))
     val sessions by vm.sessions.collectAsState()
 
     // Group by month-year
@@ -173,8 +174,9 @@ fun SessionDetailScreen(
     onBack: () -> Unit,
     onDeleted: () -> Unit = onBack
 ) {
-    val vm: HistoryViewModel = viewModel(factory = HistoryViewModel.factory(app.workoutRepository))
+    val vm: HistoryViewModel = viewModel(factory = HistoryViewModel.factory(app.workoutRepository, app.exerciseRepository))
     val sessionWithSets by vm.getSessionDetail(sessionId).collectAsState()
+    val allExercises by vm.allExercises.collectAsState()
     var showDeleteDialog by remember { mutableStateOf(false) }
 
     if (showDeleteDialog) {
@@ -227,6 +229,11 @@ fun SessionDetailScreen(
         val setsByExercise = data.sets.groupBy { it.exerciseName }
         val totalVolume = data.sets.sumOf { (it.weightKg * it.reps).toDouble() }
 
+        val exerciseMap = allExercises.associateBy { it.id }
+        val workedExercises = data.sets.map { it.exerciseId }.distinct().mapNotNull { exerciseMap[it] }
+        val workedPrimary = workedExercises.flatMap { it.primaryMuscles }.distinct()
+        val workedSecondary = (workedExercises.flatMap { it.secondaryMuscles }.distinct() - workedPrimary.toSet()).toList()
+
         LazyColumn(
             modifier = Modifier
                 .fillMaxSize()
@@ -261,6 +268,21 @@ fun SessionDetailScreen(
                     "Total volume: ${"%.1f".format(totalVolume)} kg",
                     style = MaterialTheme.typography.titleSmall
                 )
+            }
+
+            if (workedPrimary.isNotEmpty()) {
+                item {
+                    Card(modifier = Modifier.fillMaxWidth()) {
+                        Column(modifier = Modifier.padding(12.dp)) {
+                            Text("Muscles Worked", style = MaterialTheme.typography.titleSmall)
+                            Spacer(Modifier.height(8.dp))
+                            MuscleDiagram(
+                                primaryMuscles = workedPrimary,
+                                secondaryMuscles = workedSecondary
+                            )
+                        }
+                    }
+                }
             }
 
             setsByExercise.forEach { (exerciseName, sets) ->

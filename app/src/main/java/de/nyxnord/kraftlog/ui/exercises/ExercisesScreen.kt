@@ -213,6 +213,23 @@ private fun AddExerciseDialog(
                     }
                 }
 
+                Text(
+                    "Muscles (optional)",
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                    MuscleGroup.entries.filter { it != MuscleGroup.FULL_BODY }.forEach { muscle ->
+                        FilterChip(
+                            selected = muscle in selectedMuscles,
+                            onClick = {
+                                if (muscle in selectedMuscles) selectedMuscles.remove(muscle)
+                                else selectedMuscles.add(muscle)
+                            },
+                            label = { Text(muscle.name.lowercase().replaceFirstChar { it.uppercase() }) }
+                        )
+                    }
+                }
                 OutlinedTextField(
                     value = instructions,
                     onValueChange = { instructions = it },

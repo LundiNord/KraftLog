@@ -3,8 +3,10 @@ package de.nyxnord.kraftlog.ui.history
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
+import de.nyxnord.kraftlog.data.local.entity.Exercise
 import de.nyxnord.kraftlog.data.local.entity.WorkoutSession
 import de.nyxnord.kraftlog.data.local.relation.WorkoutSessionWithSets
+import de.nyxnord.kraftlog.data.repository.ExerciseRepository
 import de.nyxnord.kraftlog.data.repository.WorkoutRepository
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.flow.SharingStarted
@@ -12,11 +14,18 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 
-class HistoryViewModel(private val workoutRepo: WorkoutRepository) : ViewModel() {
+class HistoryViewModel(
+    private val workoutRepo: WorkoutRepository,
+    private val exerciseRepo: ExerciseRepository
+) : ViewModel() {
 
     val sessions: StateFlow<List<WorkoutSession>> =
         workoutRepo.getAllSessions()
             .map { list -> list.filter { it.finishedAt != null } }
+            .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
+
+    val allExercises: StateFlow<List<Exercise>> =
+        exerciseRepo.getAllExercises()
             .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
 
     fun getSessionDetail(id: Long): StateFlow<WorkoutSessionWithSets?> =
@@ -28,11 +37,11 @@ class HistoryViewModel(private val workoutRepo: WorkoutRepository) : ViewModel()
     }
 
     companion object {
-        fun factory(workoutRepo: WorkoutRepository) =
+        fun factory(workoutRepo: WorkoutRepository, exerciseRepo: ExerciseRepository) =
             object : ViewModelProvider.Factory {
                 @Suppress("UNCHECKED_CAST")
                 override fun <T : ViewModel> create(modelClass: Class<T>): T =
-                    HistoryViewModel(workoutRepo) as T
+                    HistoryViewModel(workoutRepo, exerciseRepo) as T
             }
     }
 }
