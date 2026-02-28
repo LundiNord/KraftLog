@@ -55,6 +55,8 @@ import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.compose.foundation.layout.width
+import androidx.compose.ui.text.style.TextAlign
 import de.nyxnord.kraftlog.KraftLogApplication
 import de.nyxnord.kraftlog.data.local.entity.Exercise
 import de.nyxnord.kraftlog.data.local.entity.ExerciseCategory
@@ -343,6 +345,12 @@ fun ExerciseDetailScreen(
                 }
             }
 
+            detailState.records?.let { records ->
+                item {
+                    RecordsCard(records = records)
+                }
+            }
+
             if (detailState.recentSets.isNotEmpty()) {
                 item {
                     WeightProgressChart(sets = detailState.recentSets)
@@ -361,6 +369,69 @@ fun ExerciseDetailScreen(
         }
     }
 }
+
+@Composable
+private fun RecordsCard(records: ExerciseRecords) {
+    Card(modifier = Modifier.fillMaxWidth()) {
+        Column(modifier = Modifier.padding(16.dp)) {
+            Text("Lifetime Records", style = MaterialTheme.typography.titleSmall)
+            Spacer(Modifier.height(12.dp))
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceEvenly
+            ) {
+                if (records.maxWeightKg != null) {
+                    RecordStatTile(
+                        label = "Best Weight",
+                        value = formatWeight(records.maxWeightKg) + " kg"
+                    )
+                }
+                if (records.bestEstimated1RM != null) {
+                    RecordStatTile(
+                        label = "Est. 1RM",
+                        value = formatWeight(records.bestEstimated1RM) + " kg"
+                    )
+                }
+                if (records.maxRepsInSet != null && records.maxWeightKg == null) {
+                    // Bodyweight-only exercise — show max reps prominently
+                    RecordStatTile(label = "Max Reps", value = "${records.maxRepsInSet}")
+                }
+                RecordStatTile(label = "Sessions", value = "${records.totalSessions}")
+                RecordStatTile(
+                    label = "Volume",
+                    value = if (records.totalVolumeKg >= 1_000f)
+                        "${"%.1f".format(records.totalVolumeKg / 1_000f)} t"
+                    else
+                        "${records.totalVolumeKg.toInt()} kg"
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun RecordStatTile(label: String, value: String) {
+    Column(
+        horizontalAlignment = Alignment.CenterHorizontally,
+        modifier = Modifier.width(72.dp)
+    ) {
+        Text(
+            text = value,
+            style = MaterialTheme.typography.titleMedium,
+            color = MaterialTheme.colorScheme.primary,
+            textAlign = TextAlign.Center
+        )
+        Text(
+            text = label,
+            style = MaterialTheme.typography.labelSmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            textAlign = TextAlign.Center
+        )
+    }
+}
+
+private fun formatWeight(kg: Float): String =
+    if (kg % 1f == 0f) "${kg.toInt()}" else "${"%.1f".format(kg)}"
 
 @Composable
 private fun WeightProgressChart(sets: List<WorkoutSet>) {

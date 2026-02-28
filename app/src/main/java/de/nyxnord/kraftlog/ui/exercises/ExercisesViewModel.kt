@@ -17,9 +17,19 @@ import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 
+data class ExerciseRecords(
+    val maxWeightKg: Float?,
+    val bestEstimated1RM: Float?,
+    val maxRepsInSet: Int?,
+    val totalSessions: Int,
+    val totalSets: Int,
+    val totalVolumeKg: Float
+)
+
 data class ExerciseDetailUiState(
     val exercise: Exercise? = null,
-    val recentSets: List<de.nyxnord.kraftlog.data.local.entity.WorkoutSet> = emptyList()
+    val recentSets: List<de.nyxnord.kraftlog.data.local.entity.WorkoutSet> = emptyList(),
+    val records: ExerciseRecords? = null
 )
 
 @OptIn(ExperimentalCoroutinesApi::class)
@@ -48,9 +58,21 @@ class ExercisesViewModel(
             exerciseRepo.getAllExercises(),
             workoutRepo.getSetsForExercise(exerciseId)
         ) { allExercises, sets ->
+            val records = if (sets.isNotEmpty()) {
+                val weightedSets = sets.filter { !it.isBodyweight && it.weightKg > 0 }
+                ExerciseRecords(
+                    maxWeightKg = weightedSets.maxOfOrNull { it.weightKg },
+                    bestEstimated1RM = weightedSets.maxOfOrNull { it.weightKg * (1 + it.reps / 30f) },
+                    maxRepsInSet = sets.maxOfOrNull { it.reps },
+                    totalSessions = sets.map { it.sessionId }.distinct().size,
+                    totalSets = sets.size,
+                    totalVolumeKg = sets.sumOf { (it.weightKg * it.reps).toDouble() }.toFloat()
+                )
+            } else null
             ExerciseDetailUiState(
                 exercise = allExercises.find { it.id == exerciseId },
-                recentSets = sets.take(50)
+                recentSets = sets.take(50),
+                records = records
             )
         }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), ExerciseDetailUiState())
 
