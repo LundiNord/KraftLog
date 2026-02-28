@@ -6,8 +6,11 @@ A local-first Android workout tracking app built with Jetpack Compose and Materi
 
 - **Exercise Library** — 31 pre-loaded exercises across Strength, Cardio, Calisthenics, Flexibility, and Plyometrics categories. Add your own custom exercises.
 - **Routine Builder** — Create reusable workout templates with exercises, target sets/reps/weight, and rest time.
-- **Workout Logging** — Start a session from any routine or as a quick ad-hoc workout. Log sets with weight and reps in real time with an elapsed timer.
+- **Strength Workouts** — Start a session from any routine or as a quick ad-hoc workout. Log sets with weight and reps in real time with an elapsed timer.
+- **Running Workouts** — Track runs with a live timer and log distance and notes on completion.
+- **Bouldering Workouts** — Log boulder problems by grade, track attempts and sends during a session.
 - **History & Progress** — Browse past sessions grouped by month, view total volume per session, and track set history per exercise.
+- **Home Screen Widget** — Glance-powered widget to start a workout or view recent activity at a glance.
 
 All data is stored locally — no account or internet connection required.
 
@@ -25,6 +28,8 @@ All data is stored locally — no account or internet connection required.
 | Database | Room 2.8.4 |
 | Annotation Processing | KSP 2.3.6 |
 | State Management | ViewModel + StateFlow |
+| Background Work | WorkManager 2.10.1 |
+| App Widget | Glance 1.1.0 |
 | Build | AGP 9.0.1, Gradle version catalog |
 
 ## Architecture
@@ -44,14 +49,14 @@ app/
     │   └── repository/              # Repository layer
     └── ui/
         ├── navigation/              # NavHost + route definitions
-        ├── home/                    # Dashboard
+        ├── home/                    # Dashboard + FAB session picker
         ├── routines/                # Routine list, detail, edit
         ├── exercises/               # Exercise library + detail
-        ├── workout/                 # Active workout session
+        ├── workout/                 # Active, running, bouldering sessions + summary
         └── history/                 # Session history + detail
 ```
 
-The app follows a straightforward data → repository → ViewModel → Composable pattern. Dependency injection is handled manually via `KraftLogApplication`, which lazily initializes the Room database and exposes the three repository instances. No Hilt or Dagger.
+The app follows a straightforward data → repository → ViewModel → Composable pattern. Dependency injection is handled manually via `KraftLogApplication`, which lazily initializes the Room database and exposes repository instances. No Hilt or Dagger.
 
 ## Database Schema
 
@@ -60,7 +65,7 @@ The app follows a straightforward data → repository → ViewModel → Composab
 | `exercises` | Exercise definitions (seeded + user-created) |
 | `routines` | Workout templates |
 | `routine_exercises` | Exercises within a routine with targets |
-| `workout_sessions` | Individual workout sessions |
+| `workout_sessions` | Individual workout sessions (STRENGTH, RUNNING, BOULDERING) |
 | `workout_sets` | Logged sets within a session |
 
 ## Requirements
@@ -78,7 +83,3 @@ The app follows a straightforward data → repository → ViewModel → Composab
 ```bash
 ./gradlew assembleDebug
 ```
-
-## License
-
-MIT
