@@ -16,7 +16,9 @@ All data is stored locally — no account or internet connection required.
 
 ## Screenshots
 
-*Coming soon*
+![Screenshot 1](data/HomeScreen.png)
+![Screenshot 2](data/Workout_Overview.png)
+![Screenshot 3](data/Exercise_Overview.png)
 
 ## Tech Stack
 
