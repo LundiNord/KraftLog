@@ -4,6 +4,7 @@ import android.app.Application
 import androidx.glance.appwidget.updateAll
 import de.nyxnord.kraftlog.data.local.KraftLogDatabase
 import de.nyxnord.kraftlog.data.preferences.ReminderPreferences
+import de.nyxnord.kraftlog.data.preferences.UserPreferences
 import de.nyxnord.kraftlog.data.repository.AlternativeWorkoutRepository
 import de.nyxnord.kraftlog.data.repository.ExerciseRepository
 import de.nyxnord.kraftlog.data.repository.RoutineRepository
@@ -23,6 +24,7 @@ class KraftLogApplication : Application() {
     val workoutRepository by lazy { WorkoutRepository(database.workoutSessionDao()) }
     val alternativeWorkoutRepository by lazy { AlternativeWorkoutRepository(database.alternativeWorkoutDao()) }
     val reminderPreferences by lazy { ReminderPreferences(this) }
+    val userPreferences by lazy { UserPreferences(this) }
 
     override fun onCreate() {
         super.onCreate()
