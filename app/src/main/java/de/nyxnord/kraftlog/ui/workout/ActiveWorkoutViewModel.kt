@@ -131,12 +131,26 @@ class ActiveWorkoutViewModel(
             exerciseMap.getOrPut(set.exerciseId) { mutableListOf() }.add(set)
         }
 
-        val exercises = exerciseMap.entries.map { (exerciseId, exerciseSets) ->
-            val lastSets = workoutRepo.getLastSessionSetsForExercise(exerciseId, session.id)
-            LiveExercise(
-                exerciseId = exerciseId,
-                exerciseName = exerciseSets.first().exerciseName,
-                sets = exerciseSets.map { set ->
+        // Load routine template so all exercises and unlogged sets can be restored
+        val routineExerciseDetails: List<de.nyxnord.kraftlog.data.local.relation.RoutineExerciseWithExercise>? =
+            if (session.routineId != null) {
+                val detail = routineRepo.getRoutineWithExerciseDetails(session.routineId).first()
+                detail?.exerciseDetails?.sortedBy { it.routineExercise.orderIndex }
+            } else null
+        val routineExerciseMap = routineExerciseDetails?.associateBy { it.exercise.id } ?: emptyMap()
+
+        val exercises = mutableListOf<LiveExercise>()
+
+        // Routine exercises first (in order), including those with no logged sets yet
+        if (routineExerciseDetails != null) {
+            for (routineItem in routineExerciseDetails) {
+                val exerciseId = routineItem.exercise.id
+                val re = routineItem.routineExercise
+                val perSetWeights = re.targetWeightsPerSet.split(",").filter { it.isNotBlank() }
+                val perSetReps = re.targetRepsPerSet.split(",").filter { it.isNotBlank() }
+                val lastSets = workoutRepo.getLastSessionSetsForExercise(exerciseId, session.id)
+
+                val loggedSets = exerciseMap[exerciseId]?.map { set ->
                     val weightStr = if (set.isBodyweight) ""
                     else if (set.weightKg == set.weightKg.toLong().toFloat())
                         set.weightKg.toLong().toString()
@@ -149,8 +163,53 @@ class ActiveWorkoutViewModel(
                         isBodyweight = set.isBodyweight,
                         isLogged = true
                     )
-                },
-                lastSets = lastSets
+                } ?: emptyList()
+
+                val lastLoggedSetNum = loggedSets.lastOrNull()?.setNumber ?: 0
+                val remainingSets = (lastLoggedSetNum + 1..re.targetSets).map { setNum ->
+                    LiveSet(
+                        setNumber = setNum,
+                        reps = perSetReps.getOrElse(setNum - 1) { re.targetReps.toString() },
+                        weight = perSetWeights.getOrElse(setNum - 1) { re.targetWeightKg?.toString() ?: "" }
+                    )
+                }
+
+                exercises.add(
+                    LiveExercise(
+                        exerciseId = exerciseId,
+                        exerciseName = routineItem.exercise.name,
+                        sets = loggedSets + remainingSets,
+                        restSeconds = re.restSeconds,
+                        lastSets = lastSets
+                    )
+                )
+            }
+        }
+
+        // Any exercises added ad-hoc during the workout (logged but not in routine)
+        for ((exerciseId, exerciseSets) in exerciseMap) {
+            if (routineExerciseMap.containsKey(exerciseId)) continue
+            val lastSets = workoutRepo.getLastSessionSetsForExercise(exerciseId, session.id)
+            exercises.add(
+                LiveExercise(
+                    exerciseId = exerciseId,
+                    exerciseName = exerciseSets.first().exerciseName,
+                    sets = exerciseSets.map { set ->
+                        val weightStr = if (set.isBodyweight) ""
+                        else if (set.weightKg == set.weightKg.toLong().toFloat())
+                            set.weightKg.toLong().toString()
+                        else set.weightKg.toString()
+                        LiveSet(
+                            id = set.id,
+                            setNumber = set.setNumber,
+                            reps = set.reps.toString(),
+                            weight = weightStr,
+                            isBodyweight = set.isBodyweight,
+                            isLogged = true
+                        )
+                    },
+                    lastSets = lastSets
+                )
             )
         }
 

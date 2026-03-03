@@ -17,6 +17,7 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -28,6 +29,7 @@ import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -145,6 +147,7 @@ fun BoulderingWorkoutScreen(
     )
     val state by vm.uiState.collectAsState()
     var descriptionInput by remember { mutableStateOf("") }
+    var showDiscardDialog by remember { mutableStateOf(false) }
 
     LaunchedEffect(state.isFinished) { if (state.isFinished) onFinished(state.sessionId) }
     LaunchedEffect(state.isDiscarded) { if (state.isDiscarded) onDiscarded() }
@@ -163,7 +166,7 @@ fun BoulderingWorkoutScreen(
                     }
                 },
                 actions = {
-                    IconButton(onClick = { vm.discardSession() }) {
+                    IconButton(onClick = { showDiscardDialog = true }) {
                         Icon(Icons.Default.Close, "Discard")
                     }
                 }
@@ -288,6 +291,20 @@ fun BoulderingWorkoutScreen(
             }
             item { Spacer(Modifier.height(32.dp)) }
         }
+    }
+
+    if (showDiscardDialog) {
+        AlertDialog(
+            onDismissRequest = { showDiscardDialog = false },
+            title = { Text("Discard session?") },
+            text = { Text("This session will be permanently deleted.") },
+            confirmButton = {
+                TextButton(onClick = { vm.discardSession() }) { Text("Discard") }
+            },
+            dismissButton = {
+                TextButton(onClick = { showDiscardDialog = false }) { Text("Cancel") }
+            }
+        )
     }
 }
 

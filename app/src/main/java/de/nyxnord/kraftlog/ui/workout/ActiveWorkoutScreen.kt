@@ -71,6 +71,7 @@ fun ActiveWorkoutScreen(
     )
     val state by vm.uiState.collectAsState()
     var showExercisePicker by remember { mutableStateOf(false) }
+    var showDiscardDialog by remember { mutableStateOf(false) }
     val restSheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
 
     LaunchedEffect(state.isFinished) {
@@ -94,7 +95,7 @@ fun ActiveWorkoutScreen(
                     }
                 },
                 actions = {
-                    IconButton(onClick = { vm.discardWorkout() }) {
+                    IconButton(onClick = { showDiscardDialog = true }) {
                         Icon(Icons.Default.Close, "Discard")
                     }
                 }
@@ -147,6 +148,20 @@ fun ActiveWorkoutScreen(
 
             item { Spacer(Modifier.height(32.dp)) }
         }
+    }
+
+    if (showDiscardDialog) {
+        AlertDialog(
+            onDismissRequest = { showDiscardDialog = false },
+            title = { Text("Discard workout?") },
+            text = { Text("This workout will be permanently deleted.") },
+            confirmButton = {
+                TextButton(onClick = { vm.discardWorkout() }) { Text("Discard") }
+            },
+            dismissButton = {
+                TextButton(onClick = { showDiscardDialog = false }) { Text("Cancel") }
+            }
+        )
     }
 
     if (showExercisePicker) {
@@ -354,7 +369,19 @@ private fun SetInputRow(
         )
         OutlinedTextField(
             value = set.weight,
-            onValueChange = onWeightChange,
+            onValueChange = { input ->
+                val normalized = input.replace(',', '.')
+                val filtered = buildString {
+                    var hasDot = false
+                    for (c in normalized) {
+                        when {
+                            c.isDigit() -> append(c)
+                            c == '.' && !hasDot -> { append(c); hasDot = true }
+                        }
+                    }
+                }
+                onWeightChange(filtered)
+            },
             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
             modifier = Modifier.weight(1f),
             singleLine = true,
@@ -362,7 +389,7 @@ private fun SetInputRow(
         )
         OutlinedTextField(
             value = set.reps,
-            onValueChange = onRepsChange,
+            onValueChange = { input -> onRepsChange(input.filter { it.isDigit() }) },
             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
             modifier = Modifier.weight(1f),
             singleLine = true,
