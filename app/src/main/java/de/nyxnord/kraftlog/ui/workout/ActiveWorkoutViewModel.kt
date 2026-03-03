@@ -57,6 +57,7 @@ class ActiveWorkoutViewModel(
     val uiState: StateFlow<ActiveWorkoutUiState> = _uiState.asStateFlow()
 
     private var restTimerJob: Job? = null
+    private var sessionStartMs: Long = System.currentTimeMillis()
 
     init {
         viewModelScope.launch {
@@ -86,6 +87,7 @@ class ActiveWorkoutViewModel(
             rawExerciseDetails = null
         }
 
+        sessionStartMs = System.currentTimeMillis()
         val sessionId = workoutRepo.insertSession(
             WorkoutSession(
                 routineId = if (routineId == -1L) null else routineId,
@@ -125,6 +127,7 @@ class ActiveWorkoutViewModel(
     }
 
     private suspend fun restoreSession(session: WorkoutSession) {
+        sessionStartMs = session.startedAt
         val sets = workoutRepo.getSetsForSessionList(session.id)
         val exerciseMap = LinkedHashMap<Long, MutableList<WorkoutSet>>()
         for (set in sets) {
@@ -226,7 +229,7 @@ class ActiveWorkoutViewModel(
     private suspend fun runTimer() {
         while (true) {
             delay(1_000)
-            _uiState.update { it.copy(elapsedSeconds = it.elapsedSeconds + 1) }
+            _uiState.update { it.copy(elapsedSeconds = (System.currentTimeMillis() - sessionStartMs) / 1000L) }
         }
     }
 
@@ -269,11 +272,15 @@ class ActiveWorkoutViewModel(
         }
 
         val restSecs = ex.restSeconds
+        val restStartMs = System.currentTimeMillis()
         restTimerJob?.cancel()
         restTimerJob = viewModelScope.launch {
-            for (remaining in restSecs downTo 0) {
+            while (true) {
+                val remaining = (restSecs - (System.currentTimeMillis() - restStartMs) / 1000L)
+                    .coerceAtLeast(0L).toInt()
                 _uiState.update { it.copy(restTimerSeconds = remaining) }
-                if (remaining > 0) delay(1_000)
+                if (remaining <= 0) break
+                delay(1_000)
             }
             _uiState.update { it.copy(restTimerSeconds = null) }
         }

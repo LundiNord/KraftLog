@@ -75,17 +75,20 @@ class BoulderingWorkoutViewModel(
     val uiState: StateFlow<BoulderingUiState> = _uiState.asStateFlow()
 
     private var timerJob: Job? = null
+    private var sessionStartMs: Long = 0L
 
     init {
         viewModelScope.launch {
+            val startMs = System.currentTimeMillis()
             val sessionId = workoutRepo.insertSession(
                 WorkoutSession(name = "Bouldering", sessionType = SessionType.BOULDERING.name)
             )
+            sessionStartMs = startMs
             _uiState.update { it.copy(sessionId = sessionId, isLoading = false) }
             timerJob = launch {
                 while (true) {
                     delay(1_000)
-                    _uiState.update { it.copy(elapsedSeconds = it.elapsedSeconds + 1) }
+                    _uiState.update { it.copy(elapsedSeconds = (System.currentTimeMillis() - sessionStartMs) / 1000L) }
                 }
             }
         }

@@ -17,6 +17,8 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.ExpandLess
+import androidx.compose.material.icons.filled.ExpandMore
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -39,6 +41,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -72,6 +75,7 @@ fun ActiveWorkoutScreen(
     val state by vm.uiState.collectAsState()
     var showExercisePicker by remember { mutableStateOf(false) }
     var showDiscardDialog by remember { mutableStateOf(false) }
+    val collapsedExercises = remember { mutableStateMapOf<Long, Boolean>() }
     val restSheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
 
     LaunchedEffect(state.isFinished) {
@@ -110,8 +114,11 @@ fun ActiveWorkoutScreen(
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
             itemsIndexed(state.exercises) { exIdx, exercise ->
+                val isCollapsed = collapsedExercises[exercise.exerciseId] ?: false
                 ExerciseWorkoutCard(
                     exercise = exercise,
+                    collapsed = isCollapsed,
+                    onToggleCollapse = { collapsedExercises[exercise.exerciseId] = !isCollapsed },
                     onSetRepsChange = { setIdx, value ->
                         vm.updateSetField(exIdx, setIdx, reps = value)
                     },
@@ -256,6 +263,8 @@ private fun ExercisePickerDialog(
 @Composable
 private fun ExerciseWorkoutCard(
     exercise: LiveExercise,
+    collapsed: Boolean,
+    onToggleCollapse: () -> Unit,
     onSetRepsChange: (Int, String) -> Unit,
     onSetWeightChange: (Int, String) -> Unit,
     onLogSet: (Int) -> Unit,
@@ -264,49 +273,68 @@ private fun ExerciseWorkoutCard(
 ) {
     Card(modifier = Modifier.fillMaxWidth()) {
         Column(modifier = Modifier.padding(16.dp)) {
-            Text(exercise.exerciseName, style = MaterialTheme.typography.titleMedium)
-            Spacer(Modifier.height(8.dp))
-
-            Row(modifier = Modifier.fillMaxWidth()) {
-                Text("Set", modifier = Modifier.weight(0.5f),
-                    style = MaterialTheme.typography.labelSmall)
-                Text("kg", modifier = Modifier.weight(1f),
-                    style = MaterialTheme.typography.labelSmall)
-                Text("Reps", modifier = Modifier.weight(1f),
-                    style = MaterialTheme.typography.labelSmall)
-                Spacer(Modifier.weight(0.6f))
-            }
-
-            if (exercise.lastSets.isNotEmpty()) {
-                Spacer(Modifier.height(4.dp))
-                Text(
-                    "Previous",
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-                exercise.lastSets.forEach { prevSet ->
-                    PreviousSetRow(prevSet)
-                }
-                HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp))
-            }
-
-            exercise.sets.forEachIndexed { setIdx, set ->
-                SetInputRow(
-                    set = set,
-                    onRepsChange = { onSetRepsChange(setIdx, it) },
-                    onWeightChange = { onSetWeightChange(setIdx, it) },
-                    onLog = { onLogSet(setIdx) },
-                    onUnlog = { onUnlogSet(setIdx) }
-                )
-            }
-
-            Spacer(Modifier.height(8.dp))
-            OutlinedButton(
-                onClick = onAddSet,
-                modifier = Modifier.fillMaxWidth()
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
             ) {
-                Icon(Icons.Default.Add, null)
-                Text("Add Set", modifier = Modifier.padding(start = 4.dp))
+                Text(
+                    exercise.exerciseName,
+                    style = MaterialTheme.typography.titleMedium,
+                    modifier = Modifier.weight(1f)
+                )
+                IconButton(onClick = onToggleCollapse) {
+                    Icon(
+                        if (collapsed) Icons.Default.ExpandMore else Icons.Default.ExpandLess,
+                        contentDescription = if (collapsed) "Expand" else "Collapse"
+                    )
+                }
+            }
+
+            if (!collapsed) {
+                Spacer(Modifier.height(8.dp))
+
+                Row(modifier = Modifier.fillMaxWidth()) {
+                    Text("Set", modifier = Modifier.weight(0.5f),
+                        style = MaterialTheme.typography.labelSmall)
+                    Text("kg", modifier = Modifier.weight(1f),
+                        style = MaterialTheme.typography.labelSmall)
+                    Text("Reps", modifier = Modifier.weight(1f),
+                        style = MaterialTheme.typography.labelSmall)
+                    Spacer(Modifier.weight(0.6f))
+                }
+
+                if (exercise.lastSets.isNotEmpty()) {
+                    Spacer(Modifier.height(4.dp))
+                    Text(
+                        "Previous",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    exercise.lastSets.forEach { prevSet ->
+                        PreviousSetRow(prevSet)
+                    }
+                    HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp))
+                }
+
+                exercise.sets.forEachIndexed { setIdx, set ->
+                    SetInputRow(
+                        set = set,
+                        onRepsChange = { onSetRepsChange(setIdx, it) },
+                        onWeightChange = { onSetWeightChange(setIdx, it) },
+                        onLog = { onLogSet(setIdx) },
+                        onUnlog = { onUnlogSet(setIdx) }
+                    )
+                }
+
+                Spacer(Modifier.height(8.dp))
+                OutlinedButton(
+                    onClick = onAddSet,
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Icon(Icons.Default.Add, null)
+                    Text("Add Set", modifier = Modifier.padding(start = 4.dp))
+                }
             }
         }
     }
