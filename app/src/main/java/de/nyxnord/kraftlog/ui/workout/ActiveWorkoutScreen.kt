@@ -2,6 +2,7 @@ package de.nyxnord.kraftlog.ui.workout
 
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -33,6 +34,7 @@ import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
@@ -85,6 +87,7 @@ fun ActiveWorkoutScreen(
         if (state.isDiscarded) onDiscarded()
     }
 
+    Box(modifier = Modifier.fillMaxSize()) {
     Scaffold(
         topBar = {
             TopAppBar(
@@ -157,6 +160,26 @@ fun ActiveWorkoutScreen(
         }
     }
 
+    if (state.restTimerSeconds != null && state.restTimerDismissed) {
+        Surface(
+            onClick = { vm.expandRestTimer() },
+            modifier = Modifier
+                .align(Alignment.BottomStart)
+                .padding(start = 16.dp, bottom = 16.dp),
+            shape = MaterialTheme.shapes.large,
+            tonalElevation = 8.dp,
+            shadowElevation = 4.dp
+        ) {
+            Text(
+                "Rest  ${formatElapsed(state.restTimerSeconds!!.toLong())}",
+                modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
+                style = MaterialTheme.typography.labelLarge
+            )
+        }
+    }
+
+    } // end Box
+
     if (showDiscardDialog) {
         AlertDialog(
             onDismissRequest = { showDiscardDialog = false },
@@ -182,9 +205,9 @@ fun ActiveWorkoutScreen(
         )
     }
 
-    if (state.restTimerSeconds != null) {
+    if (state.restTimerSeconds != null && !state.restTimerDismissed) {
         ModalBottomSheet(
-            onDismissRequest = { vm.dismissRestTimer() },
+            onDismissRequest = { vm.minimizeRestTimer() },
             sheetState = restSheetState
         ) {
             Column(
@@ -271,6 +294,8 @@ private fun ExerciseWorkoutCard(
     onUnlogSet: (Int) -> Unit,
     onAddSet: () -> Unit
 ) {
+    val allLogged = exercise.sets.isNotEmpty() && exercise.sets.all { it.isLogged }
+
     Card(modifier = Modifier.fillMaxWidth()) {
         Column(modifier = Modifier.padding(16.dp)) {
             Row(
@@ -281,8 +306,17 @@ private fun ExerciseWorkoutCard(
                 Text(
                     exercise.exerciseName,
                     style = MaterialTheme.typography.titleMedium,
-                    modifier = Modifier.weight(1f)
+                    modifier = Modifier.weight(1f),
+                    color = if (collapsed && allLogged) MaterialTheme.colorScheme.onSurfaceVariant
+                    else MaterialTheme.colorScheme.onSurface
                 )
+                if (collapsed && allLogged) {
+                    Icon(
+                        Icons.Default.Check,
+                        contentDescription = "Done",
+                        tint = MaterialTheme.colorScheme.primary
+                    )
+                }
                 IconButton(onClick = onToggleCollapse) {
                     Icon(
                         if (collapsed) Icons.Default.ExpandMore else Icons.Default.ExpandLess,

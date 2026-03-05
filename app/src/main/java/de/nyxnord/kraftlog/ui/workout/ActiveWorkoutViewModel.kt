@@ -43,7 +43,8 @@ data class ActiveWorkoutUiState(
     val isFinished: Boolean = false,
     val isDiscarded: Boolean = false,
     val isLoading: Boolean = true,
-    val restTimerSeconds: Int? = null
+    val restTimerSeconds: Int? = null,
+    val restTimerDismissed: Boolean = false
 )
 
 class ActiveWorkoutViewModel(
@@ -282,7 +283,7 @@ class ActiveWorkoutViewModel(
                 if (remaining <= 0) break
                 delay(1_000)
             }
-            _uiState.update { it.copy(restTimerSeconds = null) }
+            _uiState.update { it.copy(restTimerSeconds = null, restTimerDismissed = false) }
         }
     }
 
@@ -297,9 +298,17 @@ class ActiveWorkoutViewModel(
         }
     }
 
+    fun minimizeRestTimer() {
+        _uiState.update { it.copy(restTimerDismissed = true) }
+    }
+
+    fun expandRestTimer() {
+        _uiState.update { it.copy(restTimerDismissed = false) }
+    }
+
     fun dismissRestTimer() {
         restTimerJob?.cancel()
-        _uiState.update { it.copy(restTimerSeconds = null) }
+        _uiState.update { it.copy(restTimerSeconds = null, restTimerDismissed = false) }
     }
 
     fun updateSetField(exerciseIndex: Int, setIndex: Int, reps: String? = null, weight: String? = null) {
