@@ -8,9 +8,11 @@ import androidx.room.TypeConverters
 import androidx.room.migration.Migration
 import androidx.sqlite.db.SupportSQLiteDatabase
 import de.nyxnord.kraftlog.data.local.dao.AlternativeWorkoutDao
+import de.nyxnord.kraftlog.data.local.dao.BodyWeightDao
 import de.nyxnord.kraftlog.data.local.dao.ExerciseDao
 import de.nyxnord.kraftlog.data.local.dao.RoutineDao
 import de.nyxnord.kraftlog.data.local.dao.WorkoutSessionDao
+import de.nyxnord.kraftlog.data.local.entity.BodyWeightEntry
 import de.nyxnord.kraftlog.data.local.entity.BoulderingRoute
 import de.nyxnord.kraftlog.data.local.entity.Exercise
 import de.nyxnord.kraftlog.data.local.entity.ExerciseCategory
@@ -26,8 +28,8 @@ import kotlinx.coroutines.launch
 
 @Database(
     entities = [Exercise::class, Routine::class, RoutineExercise::class, WorkoutSession::class, WorkoutSet::class,
-                RunningEntry::class, BoulderingRoute::class],
-    version = 4,
+                RunningEntry::class, BoulderingRoute::class, BodyWeightEntry::class],
+    version = 5,
     exportSchema = false
 )
 @TypeConverters(Converters::class)
@@ -37,6 +39,7 @@ abstract class KraftLogDatabase : RoomDatabase() {
     abstract fun routineDao(): RoutineDao
     abstract fun workoutSessionDao(): WorkoutSessionDao
     abstract fun alternativeWorkoutDao(): AlternativeWorkoutDao
+    abstract fun bodyWeightDao(): BodyWeightDao
 
     companion object {
         @Volatile
@@ -55,6 +58,18 @@ abstract class KraftLogDatabase : RoomDatabase() {
                 database.execSQL(
                     "ALTER TABLE routine_exercises ADD COLUMN targetRepsPerSet TEXT NOT NULL DEFAULT ''"
                 )
+            }
+        }
+
+        private val MIGRATION_4_5 = object : Migration(4, 5) {
+            override fun migrate(database: SupportSQLiteDatabase) {
+                database.execSQL("""
+                    CREATE TABLE IF NOT EXISTS body_weight_entries (
+                        id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+                        date INTEGER NOT NULL,
+                        weightKg REAL NOT NULL
+                    )
+                """.trimIndent())
             }
         }
 
@@ -93,7 +108,7 @@ abstract class KraftLogDatabase : RoomDatabase() {
                     KraftLogDatabase::class.java,
                     "kraftlog.db"
                 )
-                    .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4)
+                    .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5)
                     .addCallback(SeedCallback())
                     .build()
                     .also { INSTANCE = it }

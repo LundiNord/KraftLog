@@ -5,7 +5,7 @@ import androidx.compose.material.icons.filled.FitnessCenter
 import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.List
-import androidx.compose.material.icons.filled.People
+import androidx.compose.material.icons.filled.MonitorWeight
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.navigation.NavGraph.Companion.findStartDestination
@@ -16,7 +16,7 @@ import androidx.navigation.compose.composable
 import androidx.navigation.navArgument
 import de.nyxnord.kraftlog.KraftLogApplication
 import de.nyxnord.kraftlog.ui.exercises.ExerciseDetailScreen
-import de.nyxnord.kraftlog.ui.friends.FriendsScreen
+import de.nyxnord.kraftlog.ui.weight.WeightScreen
 import de.nyxnord.kraftlog.ui.exercises.ExercisesScreen
 import de.nyxnord.kraftlog.ui.history.HistoryScreen
 import de.nyxnord.kraftlog.ui.history.SessionDetailScreen
@@ -38,7 +38,7 @@ enum class TopLevelDestination(
     ROUTINES("Routines", Icons.Default.List, "routines"),
     EXERCISES("Exercises", Icons.Default.FitnessCenter, "exercises"),
     HISTORY("History", Icons.Default.History, "history"),
-    FRIENDS("Friends", Icons.Default.People, "friends")
+    WEIGHT("Weight", Icons.Default.MonitorWeight, "weight")
 }
 
 fun NavHostController.navigateToTopLevel(destination: TopLevelDestination) {
@@ -186,9 +186,9 @@ fun KraftLogNavHost(
             )
         }
 
-        // ── Friends ───────────────────────────────────────────────────────────
-        composable("friends") {
-            FriendsScreen(app = app)
+        // ── Weight ────────────────────────────────────────────────────────────
+        composable("weight") {
+            WeightScreen(app = app)
         }
 
         // ── History ───────────────────────────────────────────────────────────

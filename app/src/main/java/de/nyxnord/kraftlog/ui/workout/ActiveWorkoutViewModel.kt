@@ -276,6 +276,7 @@ class ActiveWorkoutViewModel(
         val restStartMs = System.currentTimeMillis()
         restTimerJob?.cancel()
         restTimerJob = viewModelScope.launch {
+            _uiState.update { it.copy(restTimerDismissed = false) }
             while (true) {
                 val remaining = (restSecs - (System.currentTimeMillis() - restStartMs) / 1000L)
                     .coerceAtLeast(0L).toInt()
