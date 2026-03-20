@@ -106,11 +106,18 @@ class ActiveWorkoutViewModel(
                 exerciseId = item.exercise.id,
                 exerciseName = item.exercise.name,
                 restSeconds = re.restSeconds,
-                sets = (1..re.targetSets).map { setNum ->
+                sets = (1..maxOf(re.targetSets, lastSets.maxOfOrNull { it.setNumber } ?: 0)).map { setNum ->
+                    val lastSet = lastSets.find { it.setNumber == setNum }
                     LiveSet(
                         setNumber = setNum,
-                        reps = perSetReps.getOrElse(setNum - 1) { re.targetReps.toString() },
-                        weight = perSetWeights.getOrElse(setNum - 1) { re.targetWeightKg?.toString() ?: "" }
+                        reps = lastSet?.reps?.toString()
+                            ?: perSetReps.getOrElse(setNum - 1) { re.targetReps.toString() },
+                        weight = lastSet?.let {
+                            if (it.isBodyweight) ""
+                            else if (it.weightKg == it.weightKg.toLong().toFloat()) it.weightKg.toLong().toString()
+                            else it.weightKg.toString()
+                        } ?: perSetWeights.getOrElse(setNum - 1) { re.targetWeightKg?.toString() ?: "" },
+                        isBodyweight = lastSet?.isBodyweight ?: false
                     )
                 },
                 lastSets = lastSets
@@ -170,11 +177,18 @@ class ActiveWorkoutViewModel(
                 } ?: emptyList()
 
                 val lastLoggedSetNum = loggedSets.lastOrNull()?.setNumber ?: 0
-                val remainingSets = (lastLoggedSetNum + 1..re.targetSets).map { setNum ->
+                val remainingSets = (lastLoggedSetNum + 1..maxOf(re.targetSets, lastSets.maxOfOrNull { it.setNumber } ?: 0)).map { setNum ->
+                    val lastSet = lastSets.find { it.setNumber == setNum }
                     LiveSet(
                         setNumber = setNum,
-                        reps = perSetReps.getOrElse(setNum - 1) { re.targetReps.toString() },
-                        weight = perSetWeights.getOrElse(setNum - 1) { re.targetWeightKg?.toString() ?: "" }
+                        reps = lastSet?.reps?.toString()
+                            ?: perSetReps.getOrElse(setNum - 1) { re.targetReps.toString() },
+                        weight = lastSet?.let {
+                            if (it.isBodyweight) ""
+                            else if (it.weightKg == it.weightKg.toLong().toFloat()) it.weightKg.toLong().toString()
+                            else it.weightKg.toString()
+                        } ?: perSetWeights.getOrElse(setNum - 1) { re.targetWeightKg?.toString() ?: "" },
+                        isBodyweight = lastSet?.isBodyweight ?: false
                     )
                 }
 
@@ -342,11 +356,21 @@ class ActiveWorkoutViewModel(
             val lastSets = workoutRepo.getLastSessionSetsForExercise(exerciseId, _uiState.value.sessionId)
             val state = _uiState.value
             val updatedExercises = state.exercises.toMutableList()
+            val firstLastSet = lastSets.find { it.setNumber == 1 }
             updatedExercises.add(
                 LiveExercise(
                     exerciseId = exerciseId,
                     exerciseName = exerciseName,
-                    sets = listOf(LiveSet(setNumber = 1)),
+                    sets = listOf(LiveSet(
+                        setNumber = 1,
+                        reps = firstLastSet?.reps?.toString() ?: "",
+                        weight = firstLastSet?.let {
+                            if (it.isBodyweight) ""
+                            else if (it.weightKg == it.weightKg.toLong().toFloat()) it.weightKg.toLong().toString()
+                            else it.weightKg.toString()
+                        } ?: "",
+                        isBodyweight = firstLastSet?.isBodyweight ?: false
+                    )),
                     lastSets = lastSets
                 )
             )

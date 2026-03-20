@@ -70,11 +70,12 @@ interface WorkoutSessionDao {
         SELECT ws.* FROM workout_sets ws
         WHERE ws.exerciseId = :exerciseId
         AND ws.sessionId = (
-            SELECT s.id FROM workout_sessions s
-            INNER JOIN workout_sets ws2 ON s.id = ws2.sessionId
+            SELECT ws2.sessionId FROM workout_sets ws2
+            INNER JOIN workout_sessions s ON ws2.sessionId = s.id
             WHERE ws2.exerciseId = :exerciseId
-            AND s.id != :excludeSessionId
-            ORDER BY s.startedAt DESC
+            AND ws2.sessionId != :excludeSessionId
+            AND s.finishedAt IS NOT NULL
+            ORDER BY ws2.loggedAt DESC
             LIMIT 1
         )
         ORDER BY ws.setNumber ASC

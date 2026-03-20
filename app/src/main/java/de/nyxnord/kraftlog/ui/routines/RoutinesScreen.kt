@@ -22,6 +22,8 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.KeyboardArrowDown
+import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material.icons.filled.FileDownload
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Share
@@ -494,6 +496,16 @@ fun RoutineEditScreen(
             itemsIndexed(exerciseItems) { idx, item ->
                 EditableExerciseCard(
                     item = item,
+                    isFirst = idx == 0,
+                    isLast = idx == exerciseItems.lastIndex,
+                    onMoveUp = {
+                        val moved = exerciseItems.removeAt(idx)
+                        exerciseItems.add(idx - 1, moved)
+                    },
+                    onMoveDown = {
+                        val moved = exerciseItems.removeAt(idx)
+                        exerciseItems.add(idx + 1, moved)
+                    },
                     onRemove = { exerciseItems.removeAt(idx) },
                     onUpdate = { updated -> exerciseItems[idx] = updated }
                 )
@@ -528,6 +540,10 @@ fun RoutineEditScreen(
 @Composable
 private fun EditableExerciseCard(
     item: EditableRoutineExercise,
+    isFirst: Boolean,
+    isLast: Boolean,
+    onMoveUp: () -> Unit,
+    onMoveDown: () -> Unit,
     onRemove: () -> Unit,
     onUpdate: (EditableRoutineExercise) -> Unit
 ) {
@@ -540,6 +556,12 @@ private fun EditableExerciseCard(
             ) {
                 Text(item.exerciseName, style = MaterialTheme.typography.titleSmall,
                     modifier = Modifier.weight(1f))
+                IconButton(onClick = onMoveUp, enabled = !isFirst) {
+                    Icon(Icons.Default.KeyboardArrowUp, "Move up")
+                }
+                IconButton(onClick = onMoveDown, enabled = !isLast) {
+                    Icon(Icons.Default.KeyboardArrowDown, "Move down")
+                }
                 IconButton(onClick = onRemove) {
                     Icon(Icons.Default.Delete, "Remove", tint = MaterialTheme.colorScheme.error)
                 }
