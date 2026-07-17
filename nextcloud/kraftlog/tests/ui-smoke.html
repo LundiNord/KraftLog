@@ -1,0 +1,36 @@
+<!doctype html>
+<html lang="de">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>KraftLog UI smoke test</title>
+    <link rel="stylesheet" href="../css/kraftlog.css">
+    <style>
+        :root {
+            --header-height: 0px;
+            --color-primary-element: #00679e;
+            --color-primary-element-text: #fff;
+            --color-main-background: #f6f7f9;
+            --color-main-text: #1f2328;
+            --color-text-maxcontrast: #66707a;
+            --color-background-hover: #eef1f4;
+            --color-border: #d8dde3;
+            --color-error: #d62424;
+            --color-success: #168b55;
+        }
+
+        body {
+            margin: 0;
+            font: 15px system-ui, sans-serif;
+        }
+    </style>
+</head>
+<body>
+    <div id="kraftlog-app" data-api-base="/api">
+        <div class="kraftlog-loading">KraftLog wird geladen…</div>
+    </div>
+    <script src="ui-smoke-mock.js"></script>
+    <script src="../js/kraftlog.js"></script>
+    <script src="ui-smoke-actions.js"></script>
+</body>
+</html>

@@ -1,0 +1,32 @@
+<?xml version="1.0"?>
+<info xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+      xsi:noNamespaceSchemaLocation="https://apps.nextcloud.com/schema/apps/info.xsd">
+    <id>kraftlog</id>
+    <name>KraftLog</name>
+    <summary>Private workout tracking in your Nextcloud</summary>
+    <description><![CDATA[
+KraftLog tracks strength workouts, running and bouldering sessions, reusable
+routines, exercises, progress and body weight. Every user's data is kept
+separate in the Nextcloud database.
+    ]]></description>
+    <version>1.0.0</version>
+    <licence>AGPL-3.0-or-later</licence>
+    <author>nyxnord</author>
+    <namespace>KraftLog</namespace>
+    <category>tools</category>
+    <bugs>https://github.com/LundiNord/KraftLog/issues</bugs>
+    <dependencies>
+        <php min-version="8.2" max-version="8.5"/>
+        <database>sqlite</database>
+        <database>mysql</database>
+        <database>pgsql</database>
+        <nextcloud min-version="33" max-version="35"/>
+    </dependencies>
+    <navigations>
+        <navigation>
+            <name>KraftLog</name>
+            <route>kraftlog.page.index</route>
+            <order>30</order>
+        </navigation>
+    </navigations>
+</info>

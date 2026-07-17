@@ -2,9 +2,17 @@
 
 A local-first Android workout tracking app built with Jetpack Compose and Material3.
 
+## Nextcloud version
+
+An installable, multi-user Nextcloud rewrite is available in
+[`nextcloud/kraftlog`](nextcloud/kraftlog). It includes the core workout
+tracking, routines, exercise library, history, progress, body weight and JSON
+data migration workflows in a responsive browser interface. Installation and
+migration details are documented in its own README.
+
 ## Features
 
-- **Exercise Library** — 31 pre-loaded exercises across Strength, Cardio, Calisthenics, Flexibility, and Plyometrics categories. Add your own custom exercises.
+- **Exercise Library** — 25 pre-loaded strength exercises. Add your own custom exercises and categories.
 - **Routine Builder** — Create reusable workout templates with exercises, target sets/reps/weight, and rest time.
 - **Strength Workouts** — Start a session from any routine or as a quick ad-hoc workout. Log sets with weight and reps in real time with an elapsed timer.
 - **Running Workouts** — Track runs with a live timer and log distance and notes on completion.
