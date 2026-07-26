@@ -26,6 +26,7 @@ final class PageController extends Controller {
     #[NoCSRFRequired]
     public function index(): TemplateResponse {
         Util::addStyle(Application::APP_ID, 'kraftlog');
+        Util::addScript(Application::APP_ID, 'muscle-diagram');
         Util::addScript(Application::APP_ID, 'kraftlog');
 
         $appUrl = rtrim(

@@ -35,9 +35,19 @@ sudo -E -u www-data php occ upgrade
 sudo -E -u www-data php occ migrations:status kraftlog
 ```
 
+## Troubleshooting failed API requests
+
+If an action shows an HTTP 500 error, KraftLog displays a short error ID and
+writes the underlying exception to the Nextcloud log without exposing database
+details in the browser. Reproduce the action, then search for the error ID in
+**Administration settings → Logging** or in `data/nextcloud.log`. The matching
+entry has the message `KraftLog API request failed`.
+
 ## Features
 
 - Per-user exercise library with categories, muscle groups and instructions
+- Front/back muscle diagrams ported from the Android app for exercise cards and details
+- Wide-screen layout that expands dashboards and workout views up to 1760 px
 - Reusable routines with ordered exercises and per-set targets
 - Resumable strength workouts with live/rest timers, RPE and bodyweight sets
 - Running sessions with distance, manual/live duration, pace and notes

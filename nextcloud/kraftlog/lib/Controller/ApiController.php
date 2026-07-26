@@ -15,6 +15,7 @@ use OCP\DB\Exception as DatabaseException;
 use OCP\IRequest;
 use OCP\IUserSession;
 use OutOfBoundsException;
+use Psr\Log\LoggerInterface;
 use Throwable;
 
 final class ApiController extends Controller {
@@ -23,6 +24,7 @@ final class ApiController extends Controller {
         IRequest $request,
         private KraftLogService $service,
         private IUserSession $userSession,
+        private LoggerInterface $logger,
     ) {
         parent::__construct($appName, $request);
     }
@@ -158,15 +160,37 @@ final class ApiController extends Controller {
                     Http::STATUS_CONFLICT,
                 );
             }
+            $errorId = $this->logFailure($exception);
             return new DataResponse(
-                ['message' => 'KraftLog could not access its database.'],
+                [
+                    'message' => sprintf(
+                        'KraftLog could not access its database (error ID: %s).',
+                        $errorId,
+                    ),
+                ],
                 Http::STATUS_INTERNAL_SERVER_ERROR,
             );
-        } catch (Throwable) {
+        } catch (Throwable $exception) {
+            $errorId = $this->logFailure($exception);
             return new DataResponse(
-                ['message' => 'KraftLog could not complete the request.'],
+                [
+                    'message' => sprintf(
+                        'KraftLog could not complete the request (error ID: %s).',
+                        $errorId,
+                    ),
+                ],
                 Http::STATUS_INTERNAL_SERVER_ERROR,
             );
         }
+    }
+
+    private function logFailure(Throwable $exception): string {
+        $errorId = bin2hex(random_bytes(8));
+        $this->logger->error('KraftLog API request failed', [
+            'app' => 'kraftlog',
+            'errorId' => $errorId,
+            'exception' => $exception,
+        ]);
+        return $errorId;
     }
 }

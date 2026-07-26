@@ -70,6 +70,18 @@
         return '<span class="kl-icon">' + (ICONS[name] || '') + '</span>'
     }
 
+    function muscleDiagram(exercise, compact = false) {
+        const renderer = window.KraftLogMuscleDiagram?.render
+        if (!renderer) {
+            return '<span class="kl-exercise-card__icon">' + icon('exercises') + '</span>'
+        }
+        return renderer(
+            exercise?.primaryMuscles || [],
+            exercise?.secondaryMuscles || [],
+            { compact },
+        )
+    }
+
     function escapeHtml(value) {
         return String(value ?? '')
             .replaceAll('&', '&amp;')
@@ -614,7 +626,7 @@
                         return `
                             <article class="kl-exercise-card">
                                 <button type="button" class="kl-exercise-card__body" data-action="exercise-detail" data-id="${escapeHtml(exercise.id)}">
-                                    <span class="kl-exercise-card__icon">${icon('exercises')}</span>
+                                    <span class="kl-exercise-card__visual">${muscleDiagram(exercise, true)}</span>
                                     <span>
                                         <strong>${escapeHtml(exercise.name)}</strong>
                                         <small>${escapeHtml(CATEGORY_LABELS[exercise.category] || exercise.category)} · ${escapeHtml(muscles.join(', ') || 'Keine Muskelgruppe')}</small>
@@ -963,8 +975,10 @@
         const records = exerciseRecords(exercise)
         const recent = [...records.sets].sort((a, b) => b.loggedAt - a.loggedAt).slice(0, 12)
         return modalShell(exercise.name, `
-            <div class="kl-detail-lead">
-                <span class="kl-detail-lead__icon">${icon('exercises')}</span>
+            <div class="kl-exercise-detail-layout">
+                <div class="kl-exercise-detail-visual">${muscleDiagram(exercise)}</div>
+                <div class="kl-exercise-detail-copy">
+                    <div class="kl-detail-lead">
                 <div>
                     <span class="kl-badge">${escapeHtml(CATEGORY_LABELS[exercise.category] || exercise.category)}</span>
                     <p>${escapeHtml(exercise.instructions || 'Noch keine Anleitung hinterlegt.')}</p>
@@ -972,7 +986,9 @@
             </div>
             <div class="kl-muscle-tags">
                 ${exercise.primaryMuscles.map(muscle => `<span>${escapeHtml(MUSCLE_LABELS[muscle] || muscle)}</span>`).join('')}
-                ${exercise.secondaryMuscles.map(muscle => `<span class="secondary">${escapeHtml(MUSCLE_LABELS[muscle] || muscle)}</span>`).join('')}
+                        ${exercise.secondaryMuscles.map(muscle => `<span class="secondary">${escapeHtml(MUSCLE_LABELS[muscle] || muscle)}</span>`).join('')}
+                    </div>
+                </div>
             </div>
             <div class="kl-stats-grid kl-stats-grid--compact">
                 ${statCard('Bestgewicht', records.bestWeight === null ? '–' : formatKg(records.bestWeight), 'persönlicher Rekord')}
@@ -1166,7 +1182,7 @@
             <div class="kl-exercise-picker">
                 ${choices.map(exercise => `
                     <button type="button" data-action="add-active-exercise" data-id="${escapeHtml(exercise.id)}">
-                        <span class="kl-exercise-card__icon">${icon('exercises')}</span>
+                        <span class="kl-exercise-card__visual">${muscleDiagram(exercise, true)}</span>
                         <span><strong>${escapeHtml(exercise.name)}</strong><small>${escapeHtml((exercise.primaryMuscles || []).map(muscle => MUSCLE_LABELS[muscle] || muscle).join(', ') || CATEGORY_LABELS[exercise.category])}</small></span>
                         ${icon('plus')}
                     </button>

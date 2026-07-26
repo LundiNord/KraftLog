@@ -485,6 +485,7 @@ final class KraftLogService {
         $previousRoutineId = $existing === null || $existing['routine_id'] === null
             ? null
             : (string)$existing['routine_id'];
+        $wasFinished = $existing !== null && $existing['finished_at'] !== null;
 
         $sets = is_array($input['sets'] ?? null) ? $input['sets'] : [];
         $running = is_array($input['running'] ?? null)
@@ -500,6 +501,7 @@ final class KraftLogService {
             $id,
             $routineId,
             $previousRoutineId,
+            $wasFinished,
             $name,
             $startedAt,
             $finishedAt,
@@ -622,9 +624,13 @@ final class KraftLogService {
                 }
             }
 
-            foreach (array_unique([$previousRoutineId, $routineId]) as $affectedRoutineId) {
-                if ($affectedRoutineId !== null) {
-                    $this->scheduleRoutineLastUsedRefresh($userId, $affectedRoutineId);
+            // Active sessions cannot affect a routine's last-used timestamp. Avoid
+            // an unnecessary write while a workout is only being started or saved.
+            if ($finishedAt !== null || $wasFinished) {
+                foreach (array_unique([$previousRoutineId, $routineId]) as $affectedRoutineId) {
+                    if ($affectedRoutineId !== null) {
+                        $this->scheduleRoutineLastUsedRefresh($userId, $affectedRoutineId);
+                    }
                 }
             }
         });
@@ -635,12 +641,13 @@ final class KraftLogService {
     public function deleteSession(string $userId, string $id): void {
         $session = $this->ownedRow(self::SESSIONS, $userId, $id, 'Session');
         $routineId = $session['routine_id'] === null ? null : (string)$session['routine_id'];
-        $this->atomic(function () use ($userId, $id, $routineId): void {
+        $wasFinished = $session['finished_at'] !== null;
+        $this->atomic(function () use ($userId, $id, $routineId, $wasFinished): void {
             foreach ([self::SETS, self::RUNS, self::BOULDERS] as $table) {
                 $this->deleteRows($table, ['user_id' => $userId, 'session_id' => $id]);
             }
             $this->deleteRows(self::SESSIONS, ['user_id' => $userId, 'id' => $id]);
-            if ($routineId !== null) {
+            if ($routineId !== null && $wasFinished) {
                 $this->scheduleRoutineLastUsedRefresh($userId, $routineId);
             }
         });
@@ -1247,18 +1254,19 @@ final class KraftLogService {
 
     private function atomic(callable $callback): mixed {
         $isOutermost = $this->transactionDepth === 0;
-        if ($isOutermost) {
+        $ownsTransaction = $isOutermost && !$this->db->inTransaction();
+        if ($ownsTransaction) {
             $this->db->beginTransaction();
         }
         $this->transactionDepth++;
         try {
             $result = $callback();
-            if ($isOutermost) {
+            if ($ownsTransaction) {
                 $this->db->commit();
             }
             return $result;
         } catch (Throwable $exception) {
-            if ($isOutermost) {
+            if ($ownsTransaction) {
                 try {
                     $this->db->rollBack();
                 } catch (Throwable) {
