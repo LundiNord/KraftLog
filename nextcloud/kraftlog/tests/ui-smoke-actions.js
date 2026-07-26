@@ -8,6 +8,11 @@
     window.setTimeout(() => {
         if (['routines', 'exercises', 'history', 'weight'].includes(screen)) {
             document.querySelector(`[data-action="navigate"][data-view="${screen}"]`)?.click()
+        } else if (screen === 'exercise-detail') {
+            document.querySelector('[data-action="navigate"][data-view="exercises"]')?.click()
+            window.setTimeout(() => {
+                document.querySelector('[data-action="exercise-detail"]')?.click()
+            }, 100)
         } else if (screen === 'strength') {
             document.querySelector('[data-action="start-routine"]')?.click()
         } else if (screen === 'running') {

@@ -9,7 +9,7 @@ KraftLog tracks strength workouts, running and bouldering sessions, reusable
 routines, exercises, progress and body weight. Every user's data is kept
 separate in the Nextcloud database.
     ]]></description>
-    <version>1.0.0</version>
+    <version>1.1.0</version>
     <licence>AGPL-3.0-or-later</licence>
     <author>nyxnord</author>
     <namespace>KraftLog</namespace>
