@@ -48,4 +48,6 @@ class WorkoutRepository(private val dao: WorkoutSessionDao) {
     suspend fun updateSet(workoutSet: WorkoutSet) = dao.updateSet(workoutSet)
 
     suspend fun deleteSet(workoutSet: WorkoutSet) = dao.deleteSet(workoutSet)
+
+    suspend fun deleteSetById(id: Long) = dao.deleteSetById(id)
 }

@@ -3,6 +3,7 @@ package de.nyxnord.kraftlog.ui.workout
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
+import de.nyxnord.kraftlog.KraftLogApplication
 import de.nyxnord.kraftlog.data.local.entity.SessionType
 import de.nyxnord.kraftlog.data.local.entity.WorkoutSession
 import de.nyxnord.kraftlog.data.local.entity.WorkoutSet
@@ -51,7 +52,9 @@ class ActiveWorkoutViewModel(
     private val routineId: Long,
     private val routineRepo: RoutineRepository,
     private val workoutRepo: WorkoutRepository,
-    private val exerciseRepo: ExerciseRepository
+    private val exerciseRepo: ExerciseRepository,
+    /** Nullable so tests can construct the view model without an Application. */
+    private val app: KraftLogApplication? = null
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(ActiveWorkoutUiState())
@@ -250,10 +253,14 @@ class ActiveWorkoutViewModel(
 
     fun logSet(exerciseIndex: Int, setIndex: Int) {
         val state = _uiState.value
-        val ex = state.exercises[exerciseIndex]
-        val set = ex.sets[setIndex]
-        val reps = set.reps.toIntOrNull() ?: 0
-        val weight = set.weight.toFloatOrNull() ?: 0f
+        val ex = state.exercises.getOrNull(exerciseIndex) ?: return
+        val set = ex.sets.getOrNull(setIndex) ?: return
+        // An empty or malformed field is not a measurement. Logging it as 0 wrote a fake
+        // set into history, inflated the summary with zero-volume rows and poisoned the
+        // "last session" prefill for the next workout — so refuse instead.
+        val reps = set.reps.toIntOrNull()
+        val weight = set.weight.toFloatOrNull() ?: if (set.isBodyweight) 0f else null
+        if (reps == null || reps <= 0 || weight == null || weight < 0f) return
 
         // Immediately mark as logged in the UI
         val updatedExercises = state.exercises.toMutableList()
@@ -303,6 +310,9 @@ class ActiveWorkoutViewModel(
     }
 
     fun unlogSet(exerciseIndex: Int, setIndex: Int) {
+        val set = _uiState.value.exercises.getOrNull(exerciseIndex)?.sets?.getOrNull(setIndex)
+            ?: return
+        // UI first, matching logSet: the row disappears from the workout immediately.
         _uiState.update { state ->
             val exList = state.exercises.toMutableList()
             val ex = exList[exerciseIndex]
@@ -310,6 +320,24 @@ class ActiveWorkoutViewModel(
             setList[setIndex] = setList[setIndex].copy(isLogged = false)
             exList[exerciseIndex] = ex.copy(sets = setList)
             state.copy(exercises = exList)
+        }
+        // The row must actually leave the database. Without this the set kept counting
+        // toward the session's volume in history and the summary — and came back as a
+        // logged set on the next restore.
+        if (set.id != 0L) {
+            viewModelScope.launch {
+                workoutRepo.deleteSetById(set.id)
+                _uiState.update { s ->
+                    val exList = s.exercises.toMutableList()
+                    val exItem = exList[exerciseIndex]
+                    val setList = exItem.sets.toMutableList()
+                    if (setIndex < setList.size) {
+                        setList[setIndex] = setList[setIndex].copy(id = 0)
+                        exList[exerciseIndex] = exItem.copy(sets = setList)
+                    }
+                    s.copy(exercises = exList)
+                }
+            }
         }
     }
 
@@ -382,6 +410,9 @@ class ActiveWorkoutViewModel(
         viewModelScope.launch {
             workoutRepo.finishSession(_uiState.value.sessionId)
             _uiState.update { it.copy(isFinished = true) }
+            // The widget reads finished sessions; without this its week/month counts and
+            // "last workout" line stay frozen at whatever the process last happened to see.
+            app?.updateWidget()
         }
     }
 
@@ -397,11 +428,12 @@ class ActiveWorkoutViewModel(
             routineId: Long,
             routineRepo: RoutineRepository,
             workoutRepo: WorkoutRepository,
-            exerciseRepo: ExerciseRepository
+            exerciseRepo: ExerciseRepository,
+            app: KraftLogApplication? = null
         ) = object : ViewModelProvider.Factory {
             @Suppress("UNCHECKED_CAST")
             override fun <T : ViewModel> create(modelClass: Class<T>): T =
-                ActiveWorkoutViewModel(routineId, routineRepo, workoutRepo, exerciseRepo) as T
+                ActiveWorkoutViewModel(routineId, routineRepo, workoutRepo, exerciseRepo, app) as T
         }
     }
 }

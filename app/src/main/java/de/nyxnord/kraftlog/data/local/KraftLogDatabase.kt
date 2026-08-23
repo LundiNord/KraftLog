@@ -109,22 +109,32 @@ abstract class KraftLogDatabase : RoomDatabase() {
                     "kraftlog.db"
                 )
                     .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5)
-                    .addCallback(SeedCallback())
+                    .addCallback(SeedCallback(context))
                     .build()
                     .also { INSTANCE = it }
             }
         }
     }
 
-    private class SeedCallback : Callback() {
+    private class SeedCallback(private val context: Context) : Callback() {
         override fun onOpen(db: SupportSQLiteDatabase) {
             super.onOpen(db)
+            // The seed data is static; once it is in, re-checking 28 exercise names on
+            // every open of the database for the life of the app is pure I/O waste. A
+            // flag keyed to this app version lets a future seed list bump it.
+            val prefs = context.getSharedPreferences("seed", Context.MODE_PRIVATE)
+            if (prefs.getBoolean(SEED_DONE, false)) return
             INSTANCE?.let { database ->
                 CoroutineScope(Dispatchers.IO).launch {
                     seedExercises(database.exerciseDao())
                     seedRoutines(database.exerciseDao(), database.routineDao())
+                    prefs.edit().putBoolean(SEED_DONE, true).apply()
                 }
             }
+        }
+
+        private companion object {
+            const val SEED_DONE = "seed_done_v1"
         }
 
         private suspend fun seedExercises(dao: ExerciseDao) {

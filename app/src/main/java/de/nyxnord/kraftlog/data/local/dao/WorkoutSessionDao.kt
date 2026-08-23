@@ -94,6 +94,9 @@ interface WorkoutSessionDao {
     @Query("DELETE FROM workout_sets WHERE sessionId = :sessionId AND exerciseId = :exerciseId AND setNumber = :setNumber")
     suspend fun deleteSetByNumber(sessionId: Long, exerciseId: Long, setNumber: Int)
 
+    @Query("DELETE FROM workout_sets WHERE id = :id")
+    suspend fun deleteSetById(id: Long)
+
     @Query("SELECT * FROM workout_sets")
     fun getAllSets(): Flow<List<WorkoutSet>>
 }

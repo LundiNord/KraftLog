@@ -71,7 +71,8 @@ fun ActiveWorkoutScreen(
             routineId,
             app.routineRepository,
             app.workoutRepository,
-            app.exerciseRepository
+            app.exerciseRepository,
+            app
         )
     )
     val state by vm.uiState.collectAsState()
