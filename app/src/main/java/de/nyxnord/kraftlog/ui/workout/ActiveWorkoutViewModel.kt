@@ -103,24 +103,32 @@ class ActiveWorkoutViewModel(
         val exercises = rawExerciseDetails?.map { item ->
             val lastSets = workoutRepo.getLastSessionSetsForExercise(item.exercise.id, sessionId)
             val re = item.routineExercise
-            val perSetWeights = re.targetWeightsPerSet.split(",").filter { it.isNotBlank() }
-            val perSetReps = re.targetRepsPerSet.split(",").filter { it.isNotBlank() }
+            val perSetWeights = SetPrefill.parsePerSetList(re.targetWeightsPerSet)
+            val perSetReps = SetPrefill.parsePerSetList(re.targetRepsPerSet)
             LiveExercise(
                 exerciseId = item.exercise.id,
                 exerciseName = item.exercise.name,
                 restSeconds = re.restSeconds,
                 sets = (1..maxOf(re.targetSets, lastSets.maxOfOrNull { it.setNumber } ?: 0)).map { setNum ->
-                    val lastSet = lastSets.find { it.setNumber == setNum }
                     LiveSet(
                         setNumber = setNum,
-                        reps = lastSet?.reps?.toString()
-                            ?: perSetReps.getOrElse(setNum - 1) { re.targetReps.toString() },
-                        weight = lastSet?.let {
-                            if (it.isBodyweight) ""
-                            else if (it.weightKg == it.weightKg.toLong().toFloat()) it.weightKg.toLong().toString()
-                            else it.weightKg.toString()
-                        } ?: perSetWeights.getOrElse(setNum - 1) { re.targetWeightKg?.toString() ?: "" },
-                        isBodyweight = lastSet?.isBodyweight ?: false
+                        reps = SetPrefill.prefill(
+                            setNumber = setNum,
+                            lastSets = lastSets,
+                            pick = { it.reps.toString() },
+                            perSetList = perSetReps,
+                            parse = { it.toIntOrNull() },
+                            singleTarget = re.targetReps,
+                        )?.toString() ?: "",
+                        weight = SetPrefill.prefill(
+                            setNumber = setNum,
+                            lastSets = lastSets,
+                            pick = { if (it.isBodyweight) "" else SetPrefill.formatWeight(it.weightKg) },
+                            perSetList = perSetWeights,
+                            parse = { it.toFloatOrNull()?.let(SetPrefill::formatWeight) },
+                            singleTarget = re.targetWeightKg?.let(SetPrefill::formatWeight),
+                        ) ?: "",
+                        isBodyweight = lastSets.find { it.setNumber == setNum }?.isBodyweight ?: false
                     )
                 },
                 lastSets = lastSets
@@ -160,20 +168,16 @@ class ActiveWorkoutViewModel(
             for (routineItem in routineExerciseDetails) {
                 val exerciseId = routineItem.exercise.id
                 val re = routineItem.routineExercise
-                val perSetWeights = re.targetWeightsPerSet.split(",").filter { it.isNotBlank() }
-                val perSetReps = re.targetRepsPerSet.split(",").filter { it.isNotBlank() }
+                val perSetWeights = SetPrefill.parsePerSetList(re.targetWeightsPerSet)
+                val perSetReps = SetPrefill.parsePerSetList(re.targetRepsPerSet)
                 val lastSets = workoutRepo.getLastSessionSetsForExercise(exerciseId, session.id)
 
                 val loggedSets = exerciseMap[exerciseId]?.map { set ->
-                    val weightStr = if (set.isBodyweight) ""
-                    else if (set.weightKg == set.weightKg.toLong().toFloat())
-                        set.weightKg.toLong().toString()
-                    else set.weightKg.toString()
                     LiveSet(
                         id = set.id,
                         setNumber = set.setNumber,
                         reps = set.reps.toString(),
-                        weight = weightStr,
+                        weight = if (set.isBodyweight) "" else SetPrefill.formatWeight(set.weightKg),
                         isBodyweight = set.isBodyweight,
                         isLogged = true
                     )
@@ -181,17 +185,25 @@ class ActiveWorkoutViewModel(
 
                 val lastLoggedSetNum = loggedSets.lastOrNull()?.setNumber ?: 0
                 val remainingSets = (lastLoggedSetNum + 1..maxOf(re.targetSets, lastSets.maxOfOrNull { it.setNumber } ?: 0)).map { setNum ->
-                    val lastSet = lastSets.find { it.setNumber == setNum }
                     LiveSet(
                         setNumber = setNum,
-                        reps = lastSet?.reps?.toString()
-                            ?: perSetReps.getOrElse(setNum - 1) { re.targetReps.toString() },
-                        weight = lastSet?.let {
-                            if (it.isBodyweight) ""
-                            else if (it.weightKg == it.weightKg.toLong().toFloat()) it.weightKg.toLong().toString()
-                            else it.weightKg.toString()
-                        } ?: perSetWeights.getOrElse(setNum - 1) { re.targetWeightKg?.toString() ?: "" },
-                        isBodyweight = lastSet?.isBodyweight ?: false
+                        reps = SetPrefill.prefill(
+                            setNumber = setNum,
+                            lastSets = lastSets,
+                            pick = { it.reps.toString() },
+                            perSetList = perSetReps,
+                            parse = { it.toIntOrNull() },
+                            singleTarget = re.targetReps,
+                        )?.toString() ?: "",
+                        weight = SetPrefill.prefill(
+                            setNumber = setNum,
+                            lastSets = lastSets,
+                            pick = { if (it.isBodyweight) "" else SetPrefill.formatWeight(it.weightKg) },
+                            perSetList = perSetWeights,
+                            parse = { it.toFloatOrNull()?.let(SetPrefill::formatWeight) },
+                            singleTarget = re.targetWeightKg?.let(SetPrefill::formatWeight),
+                        ) ?: "",
+                        isBodyweight = lastSets.find { it.setNumber == setNum }?.isBodyweight ?: false
                     )
                 }
 
@@ -258,9 +270,12 @@ class ActiveWorkoutViewModel(
         // An empty or malformed field is not a measurement. Logging it as 0 wrote a fake
         // set into history, inflated the summary with zero-volume rows and poisoned the
         // "last session" prefill for the next workout — so refuse instead.
-        val reps = set.reps.toIntOrNull()
-        val weight = set.weight.toFloatOrNull() ?: if (set.isBodyweight) 0f else null
-        if (reps == null || reps <= 0 || weight == null || weight < 0f) return
+        if (!SetPrefill.isValidLog(set.reps, set.weight, set.isBodyweight)) return
+        val reps = set.reps.toIntOrNull() ?: return
+        val weight = when {
+            set.isBodyweight -> 0f
+            else -> set.weight.toFloatOrNull() ?: return
+        }
 
         // Immediately mark as logged in the UI
         val updatedExercises = state.exercises.toMutableList()
@@ -392,11 +407,8 @@ class ActiveWorkoutViewModel(
                     sets = listOf(LiveSet(
                         setNumber = 1,
                         reps = firstLastSet?.reps?.toString() ?: "",
-                        weight = firstLastSet?.let {
-                            if (it.isBodyweight) ""
-                            else if (it.weightKg == it.weightKg.toLong().toFloat()) it.weightKg.toLong().toString()
-                            else it.weightKg.toString()
-                        } ?: "",
+                        weight = if (firstLastSet?.isBodyweight == true) ""
+                        else firstLastSet?.let { SetPrefill.formatWeight(it.weightKg) } ?: "",
                         isBodyweight = firstLastSet?.isBodyweight ?: false
                     )),
                     lastSets = lastSets
