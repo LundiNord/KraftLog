@@ -30,7 +30,7 @@ import kotlinx.coroutines.launch
     entities = [Exercise::class, Routine::class, RoutineExercise::class, WorkoutSession::class, WorkoutSet::class,
                 RunningEntry::class, BoulderingRoute::class, BodyWeightEntry::class],
     version = 5,
-    exportSchema = false
+    exportSchema = true
 )
 @TypeConverters(Converters::class)
 abstract class KraftLogDatabase : RoomDatabase() {
@@ -45,23 +45,84 @@ abstract class KraftLogDatabase : RoomDatabase() {
         @Volatile
         private var INSTANCE: KraftLogDatabase? = null
 
-        private val MIGRATION_1_2 = object : Migration(1, 2) {
+        internal val MIGRATION_1_2 = object : Migration(1, 2) {
             override fun migrate(database: SupportSQLiteDatabase) {
-                database.execSQL(
-                    "ALTER TABLE routine_exercises ADD COLUMN targetWeightsPerSet TEXT NOT NULL DEFAULT ''"
-                )
+                // ALTER TABLE ... ADD COLUMN with a DEFAULT leaves a schema-level default
+                // behind that the entity does not declare — Room's validation then rejects
+                // every later open with "Migration didn't properly handle". Rebuilding the
+                // table without the default keeps the runtime schema identical to what the
+                // compiled entities expect.
+                database.execSQL("ALTER TABLE routine_exercises RENAME TO routine_exercises_old")
+                database.execSQL("""
+                    CREATE TABLE IF NOT EXISTS routine_exercises (
+                        routineId INTEGER NOT NULL,
+                        exerciseId INTEGER NOT NULL,
+                        orderIndex INTEGER NOT NULL,
+                        targetSets INTEGER NOT NULL,
+                        targetReps INTEGER NOT NULL,
+                        targetWeightKg REAL,
+                        targetWeightsPerSet TEXT NOT NULL,
+                        restSeconds INTEGER NOT NULL,
+                        notes TEXT NOT NULL DEFAULT '',
+                        PRIMARY KEY(routineId, exerciseId),
+                        FOREIGN KEY(routineId) REFERENCES routines(id) ON DELETE CASCADE,
+                        FOREIGN KEY(exerciseId) REFERENCES exercises(id) ON DELETE CASCADE
+                    )
+                """.trimIndent())
+                database.execSQL("""
+                    INSERT OR REPLACE INTO routine_exercises
+                        (routineId, exerciseId, orderIndex, targetSets, targetReps, targetWeightKg,
+                         targetWeightsPerSet, restSeconds, notes)
+                    SELECT routineId, exerciseId, orderIndex, targetSets, targetReps, targetWeightKg,
+                           '', restSeconds, notes
+                    FROM routine_exercises_old
+                """.trimIndent())
+                // Drop first: the renamed table still owns the original index names,
+                // so creating the indices before the drop would silently no-op.
+                database.execSQL("DROP TABLE routine_exercises_old")
+                database.execSQL("CREATE INDEX IF NOT EXISTS index_routine_exercises_routineId ON routine_exercises(routineId)")
+                database.execSQL("CREATE INDEX IF NOT EXISTS index_routine_exercises_exerciseId ON routine_exercises(exerciseId)")
             }
         }
 
-        private val MIGRATION_2_3 = object : Migration(2, 3) {
+        internal val MIGRATION_2_3 = object : Migration(2, 3) {
             override fun migrate(database: SupportSQLiteDatabase) {
-                database.execSQL(
-                    "ALTER TABLE routine_exercises ADD COLUMN targetRepsPerSet TEXT NOT NULL DEFAULT ''"
-                )
+                // Same reasoning as MIGRATION_1_2: no schema-level default may remain.
+                database.execSQL("ALTER TABLE routine_exercises RENAME TO routine_exercises_old")
+                database.execSQL("""
+                    CREATE TABLE IF NOT EXISTS routine_exercises (
+                        routineId INTEGER NOT NULL,
+                        exerciseId INTEGER NOT NULL,
+                        orderIndex INTEGER NOT NULL,
+                        targetSets INTEGER NOT NULL,
+                        targetReps INTEGER NOT NULL,
+                        targetWeightKg REAL,
+                        targetWeightsPerSet TEXT NOT NULL,
+                        targetRepsPerSet TEXT NOT NULL,
+                        restSeconds INTEGER NOT NULL,
+                        notes TEXT NOT NULL DEFAULT '',
+                        PRIMARY KEY(routineId, exerciseId),
+                        FOREIGN KEY(routineId) REFERENCES routines(id) ON DELETE CASCADE,
+                        FOREIGN KEY(exerciseId) REFERENCES exercises(id) ON DELETE CASCADE
+                    )
+                """.trimIndent())
+                database.execSQL("""
+                    INSERT OR REPLACE INTO routine_exercises
+                        (routineId, exerciseId, orderIndex, targetSets, targetReps, targetWeightKg,
+                         targetWeightsPerSet, targetRepsPerSet, restSeconds, notes)
+                    SELECT routineId, exerciseId, orderIndex, targetSets, targetReps, targetWeightKg,
+                           targetWeightsPerSet, '', restSeconds, notes
+                    FROM routine_exercises_old
+                """.trimIndent())
+                // Drop first: the renamed table still owns the original index names,
+                // so creating the indices before the drop would silently no-op.
+                database.execSQL("DROP TABLE routine_exercises_old")
+                database.execSQL("CREATE INDEX IF NOT EXISTS index_routine_exercises_routineId ON routine_exercises(routineId)")
+                database.execSQL("CREATE INDEX IF NOT EXISTS index_routine_exercises_exerciseId ON routine_exercises(exerciseId)")
             }
         }
 
-        private val MIGRATION_4_5 = object : Migration(4, 5) {
+        internal val MIGRATION_4_5 = object : Migration(4, 5) {
             override fun migrate(database: SupportSQLiteDatabase) {
                 database.execSQL("""
                     CREATE TABLE IF NOT EXISTS body_weight_entries (
@@ -73,7 +134,7 @@ abstract class KraftLogDatabase : RoomDatabase() {
             }
         }
 
-        private val MIGRATION_3_4 = object : Migration(3, 4) {
+        internal val MIGRATION_3_4 = object : Migration(3, 4) {
             override fun migrate(database: SupportSQLiteDatabase) {
                 database.execSQL(
                     "ALTER TABLE workout_sessions ADD COLUMN sessionType TEXT NOT NULL DEFAULT 'STRENGTH'"

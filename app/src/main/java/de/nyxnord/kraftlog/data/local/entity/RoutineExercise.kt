@@ -1,5 +1,6 @@
 package de.nyxnord.kraftlog.data.local.entity
 
+import androidx.room.ColumnInfo
 import androidx.room.Entity
 import androidx.room.ForeignKey
 import androidx.room.Index
@@ -33,5 +34,6 @@ data class RoutineExercise(
     val targetWeightsPerSet: String = "", // comma-separated per-set weights, e.g. "60.0,65.0,70.0"
     val targetRepsPerSet: String = "",   // comma-separated per-set reps, e.g. "10,8,6"
     val restSeconds: Int = 90,
+    @ColumnInfo(defaultValue = "")
     val notes: String = ""
 )

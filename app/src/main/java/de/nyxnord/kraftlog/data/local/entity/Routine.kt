@@ -1,5 +1,6 @@
 package de.nyxnord.kraftlog.data.local.entity
 
+import androidx.room.ColumnInfo
 import androidx.room.Entity
 import androidx.room.PrimaryKey
 
@@ -8,6 +9,7 @@ data class Routine(
     @PrimaryKey(autoGenerate = true)
     val id: Long = 0,
     val name: String,
+    @ColumnInfo(defaultValue = "")
     val description: String = "",
     val createdAt: Long = System.currentTimeMillis(),
     val lastUsedAt: Long? = null

@@ -1,5 +1,6 @@
 package de.nyxnord.kraftlog.data.local.entity
 
+import androidx.room.ColumnInfo
 import androidx.room.Entity
 import androidx.room.ForeignKey
 import androidx.room.Index
@@ -24,6 +25,8 @@ data class WorkoutSession(
     val name: String,
     val startedAt: Long = System.currentTimeMillis(),
     val finishedAt: Long? = null,
+    @ColumnInfo(defaultValue = "")
     val notes: String = "",
+    @ColumnInfo(defaultValue = "STRENGTH")
     val sessionType: String = SessionType.STRENGTH.name
 )

@@ -1,5 +1,6 @@
 package de.nyxnord.kraftlog.data.local.entity
 
+import androidx.room.ColumnInfo
 import androidx.room.Entity
 import androidx.room.PrimaryKey
 
@@ -11,7 +12,9 @@ data class Exercise(
     val category: ExerciseCategory,
     val primaryMuscles: List<MuscleGroup>,
     val secondaryMuscles: List<MuscleGroup> = emptyList(),
+    @ColumnInfo(defaultValue = "")
     val instructions: String = "",
+    @ColumnInfo(defaultValue = "0")
     val isCustom: Boolean = false,
     val createdAt: Long = System.currentTimeMillis()
 )
